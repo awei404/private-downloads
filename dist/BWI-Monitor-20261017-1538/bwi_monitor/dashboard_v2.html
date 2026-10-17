@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BWI TMS Monitor</title>
+<style>
+  :root {
+    --bg: #f3f5f8; --panel: #ffffff; --text: #18202a; --muted: #5f6b7a; --line: #e2e6ec; --head: #f7f9fb;
+    --brand: #0f3d6e; --brand-2: #1d5fa8;
+    --ok: #1f7a3d; --ok-bg: #e6f4ea; --warn: #9a5b00; --warn-bg: #fff3dc; --urgent: #b94a00; --urgent-bg: #ffe8d6;
+    --bad: #b42318; --bad-bg: #fdeceb; --info: #1d5fa8; --info-bg: #e8f0fb; --idle: #6b7380; --idle-bg: #eef0f3;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, sans-serif; }
+  button, input, select { font: inherit; }
+  .wrap { max-width: 1680px; margin: 0 auto; padding: 0 20px; }
+
+  /* A — header */
+  header { background: var(--brand); color: #fff; position: sticky; top: 0; z-index: 20; box-shadow: 0 1px 4px rgba(0,0,0,.15); }
+  header .wrap { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; padding-top: 10px; padding-bottom: 10px; }
+  header h1 { font-size: 19px; letter-spacing: .06em; margin: 0 8px 0 0; white-space: nowrap; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; flex: 1; }
+  .chip { display: inline-flex; gap: 6px; align-items: center; background: rgba(255,255,255,.12); border-radius: 999px;
+          padding: 3px 11px; font-size: 13px; white-space: nowrap; }
+  .chip .dot { width: 8px; height: 8px; border-radius: 50%; background: #9aa4b1; }
+  .dot.ok { background: #4ade80; } .dot.warn { background: #fbbf24; } .dot.bad { background: #f87171; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .btn { border: 1px solid transparent; border-radius: 7px; padding: 6px 13px; cursor: pointer; font-weight: 600; font-size: 14px; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.start { background: #22a35a; color: #fff; } .btn.end { background: #d64545; color: #fff; }
+  .btn.ghost { background: transparent; color: #fff; border-color: rgba(255,255,255,.45); }
+  .btn.plain { background: var(--panel); color: var(--text); border-color: var(--line); font-weight: 500; }
+  .toggle { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; cursor: pointer; }
+  .search { padding: 6px 10px; border-radius: 7px; border: 0; min-width: 220px; }
+
+  main.wrap { padding-top: 14px; padding-bottom: 40px; }
+  .banner { border-radius: 9px; padding: 10px 14px; margin-bottom: 12px; font-weight: 600; display: flex; gap: 12px;
+            flex-wrap: wrap; align-items: center; }
+  .banner.bad { background: var(--bad-bg); color: var(--bad); border: 1px solid #f5c2bd; }
+  .banner.warn { background: var(--warn-bg); color: var(--warn); border: 1px solid #f3d9a4; }
+  .banner.info { background: var(--info-bg); color: var(--info); border: 1px solid #c6d8f1; }
+
+  /* B — cards */
+  .cards { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin-bottom: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 11px; padding: 12px 16px; border-left: 5px solid var(--idle); }
+  .card .k { font-size: 14px; color: var(--muted); } .card .v { font-size: 32px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .card.c-dep { border-left-color: var(--brand-2); } .card.c-done { border-left-color: var(--ok); }
+  .card.c-unl { border-left-color: #6d5bd0; } .card.c-near { border-left-color: #e0a100; }
+  .card.c-over { border-left-color: var(--bad); } .card.c-ops { border-left-color: var(--urgent); }
+  .card.hot .v { color: var(--bad); }
+
+  .maintabs { display: flex; gap: 6px; margin: 4px 0 12px; border-bottom: 2px solid var(--line); }
+  .maintabs button { border: 0; background: transparent; padding: 10px 18px; font-size: 17px; font-weight: 700; color: var(--muted);
+                     cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; }
+  .maintabs button.on { color: var(--brand); border-bottom-color: var(--brand); }
+  .maintabs .n { background: var(--bad); color: #fff; border-radius: 999px; padding: 0 8px; font-size: 12px; margin-left: 6px; }
+  .subhead { font-size: 15px; margin: 12px 16px 6px; }
+  .progress { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; padding: 12px 16px; }
+  .prog { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .prog .r { font-weight: 700; font-size: 16px; } .prog .c { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .bar { height: 7px; background: var(--idle-bg); border-radius: 99px; overflow: hidden; margin-top: 6px; }
+  .bar > span { display: block; height: 100%; background: var(--ok); }
+  .prog.late .bar > span { background: var(--bad); }
+  .progress > .small { grid-column: 1 / -1; }
+  /* sections */
+  section.box { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+  .box-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; padding: 12px 16px;
+              border-bottom: 1px solid var(--line); }
+  .box-head h2 { font-size: 18px; margin: 0; }
+  .box-head .sub { color: var(--muted); font-size: 13px; }
+  .filters { display: flex; flex-wrap: wrap; gap: 6px; }
+  .filters button { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 3px 12px; cursor: pointer; font-size: 13px; }
+  .filters button.on { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .filters .n { opacity: .7; margin-left: 3px; }
+  .tablewrap { overflow: auto; max-height: 560px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { padding: 8px 12px; text-align: left; white-space: nowrap; border-bottom: 1px solid var(--line); }
+  th { position: sticky; top: 0; background: var(--head); color: var(--muted); font-weight: 600; font-size: 13px; z-index: 1;
+       cursor: pointer; user-select: none; }
+  th.nosort { cursor: default; } th .arrow { opacity: .55; font-size: 11px; margin-left: 3px; }
+  tbody tr { cursor: pointer; } tbody tr:hover { background: #f6f9fd; }
+  tr.r-overdue { background: #fff6f5; } tr.r-warn { background: #fffaf0; } tr.r-done td { color: #3d4a57; }
+  tr.r-future td { color: var(--muted); }
+  td.wrapcell { white-space: normal; min-width: 240px; color: var(--muted); }
+  .route { font-weight: 700; letter-spacing: .03em; }
+  .mono { font-variant-numeric: tabular-nums; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .cd { font-size: 16px; font-weight: 700; } .cd.ok { color: var(--ok); } .cd.warn { color: var(--warn); }
+  .cd.urgent { color: var(--urgent); } .cd.bad { color: var(--bad); } .cd.idle { color: var(--muted); font-weight: 500; font-size: 14px; }
+  .tag { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 600; }
+  .t-ok { background: var(--ok-bg); color: var(--ok); } .t-warn { background: var(--warn-bg); color: var(--warn); }
+  .t-urgent { background: var(--urgent-bg); color: var(--urgent); } .t-bad { background: var(--bad-bg); color: var(--bad); }
+  .t-info { background: var(--info-bg); color: var(--info); } .t-idle { background: var(--idle-bg); color: var(--idle); }
+  .small { font-size: 12px; color: var(--muted); }
+  .more { padding: 10px 16px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+  .empty { padding: 18px 16px; color: var(--muted); }
+  .tabs { display: flex; gap: 4px; }
+  .tabs button { border: 0; background: transparent; padding: 8px 14px; border-bottom: 3px solid transparent; cursor: pointer;
+                 font-weight: 600; color: var(--muted); font-size: 15px; }
+  .tabs button.on { color: var(--brand); border-bottom-color: var(--brand); }
+  .tabs .n { background: var(--bad); color: #fff; border-radius: 999px; padding: 0 7px; font-size: 12px; margin-left: 4px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  details.box > summary { padding: 12px 16px; cursor: pointer; font-weight: 600; font-size: 16px; }
+  footer { color: var(--muted); font-size: 12.5px; line-height: 1.6; }
+  dialog { border: 1px solid var(--line); border-radius: 12px; width: min(960px, 94vw); max-height: 88vh; padding: 20px; }
+  dialog::backdrop { background: rgba(10,20,35,.4); }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 3px 16px; font-size: 13px; margin: 0 0 14px; }
+  dt { color: var(--muted); } dd { margin: 0; word-break: break-word; }
+  pre { white-space: pre-wrap; font-size: 12px; background: var(--head); padding: 8px; border-radius: 6px; }
+  @media (max-width: 1200px) { .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } .grid2 { grid-template-columns: 1fr; } }
+  html, body { max-width: 100%; }
+  main.wrap > * { min-width: 0; max-width: 100%; }
+  .tablewrap { max-width: 100%; -webkit-overflow-scrolling: touch; }
+  @media (max-width: 760px) {
+    .wrap { padding: 0 12px; }
+    header { position: static; }
+    header .wrap { flex-direction: column; align-items: stretch; gap: 8px; }
+    .chips { flex: none; } .chip { white-space: normal; }
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .actions .search { grid-column: 1 / -1; min-width: 0; width: 100%; }
+    .actions .btn { width: 100%; } .actions .toggle { justify-content: center; }
+    .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .card { padding: 10px 12px; min-width: 0; } .card .v { font-size: 26px; }
+    header h1 { font-size: 17px; }
+    .box-head { flex-direction: column; align-items: flex-start; padding: 10px 12px; }
+    .filters, .tabs { width: 100%; flex-wrap: wrap; }
+    th, td { padding: 6px 9px; font-size: 13px; }
+    .tablewrap { max-height: 70vh; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>BWI TMS MONITOR</h1>
+    <div class="chips" id="chips"></div>
+    <div class="actions">
+      <input id="q" class="search" type="search" placeholder="搜索 任务编号 / 车牌 / 线路" aria-label="搜索">
+      <button class="btn start" id="btnStart" data-shift="start">上班 Start Shift</button>
+      <button class="btn end" id="btnEnd" data-shift="end">下班 End Shift</button>
+      <label class="toggle"><input id="sound" type="checkbox"> 声音提醒</label>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="banners"></div>
+  <div id="searchbar" class="banner info" hidden></div>
+  <div class="cards" id="cards"></div>
+
+  <nav class="maintabs" id="mainTabs" role="tablist">
+    <button data-main="recv">📦 收车</button>
+    <button data-main="send">🚛 发车</button>
+    <button data-main="alert">⚠️ 异常预警</button>
+  </nav>
+
+  <!-- 收车 -->
+  <section class="box" id="tab-recv" aria-labelledby="h-recv">
+    <div class="box-head">
+      <div><h2 id="h-recv">📦 收车</h2>
+        <div class="sub" id="recvWindow"></div>
+        <div class="sub">到达时间取人工收车和 GPS 中较早者 · 未到达的车显示预计到达时间及来源 · 首枪截止：19:00 前到车 = MAX(到车+60分, 14:00)，19:00 后到车 = 次日 14:00</div></div>
+      <div class="filters" id="originTabs"></div>
+    </div>
+    <div class="progress" id="recvSummary"></div>
+    <h3 class="subhead">未到达 <span class="small" id="comingCount"></span></h3>
+    <div class="tablewrap"><table id="recvComing"></table></div>
+    <div class="more" id="recvComingMore"></div>
+    <h3 class="subhead">已到达 <span class="small" id="arrivedCount"></span></h3>
+    <div class="tablewrap"><table id="recvArrived"></table></div>
+    <div class="more" id="recvArrivedMore"></div>
+  </section>
+
+  <!-- 发车 -->
+  <section class="box" id="tab-send" aria-labelledby="h-send">
+    <div class="box-head">
+      <div><h2 id="h-send">🚛 发车 · 今天作业日 <span id="opDate"></span></h2>
+        <div class="sub">支线内部截止：ORF 23:00 · RIC 00:00 · DCA 02:00 · IAD 02:30；其他线路按 TMS 计划发车 · 以 TMS 人工发车为准 · 串点车到 BWI 后才开始判断</div></div>
+      <div class="filters" id="sendTabs"></div>
+    </div>
+    <div class="progress" id="routeProgress"></div>
+    <div class="box-head" style="border-top:1px solid var(--line)"><div class="sub">筛选</div><div class="filters" id="depFilters"></div></div>
+    <div class="tablewrap"><table id="depTable"></table></div>
+    <div class="more" id="depMore"></div>
+  </section>
+
+  <!-- 异常预警 -->
+  <section class="box" id="tab-alert" aria-labelledby="h-alr">
+    <div class="box-head">
+      <h2 id="h-alr">⚠️ 异常预警</h2>
+      <div class="tabs" role="tablist" id="tabs">
+        <button data-tab="active" class="on">当前异常</button>
+        <button data-tab="ops">操作合规</button>
+        <button data-tab="history">历史记录</button>
+      </div>
+    </div>
+    <div class="tablewrap"><table id="alertTable"></table></div>
+    <div class="more" id="alertMore"></div>
+    <div class="small" style="padding: 0 16px 12px">“关闭”需填写姓名和原因，记录永久保留；标为“保留”的告警（发车超时、卸车首枪超时、TMS 操作缺失）不能手工关闭，TMS 出现对应操作后自动结束。确认查看只表示已看到。</div>
+  </section>
+
+  <footer class="small" style="padding: 4px 4px 16px">
+    内部预警规则 · 非 TMS 官方 KPI 统计。时间按 10 分钟一次的 TMS 数据判断（“根据 TMS 记录”）。已作废（taskStatus 6）任务不参与监控。倒计时只在页面显示，不会触发通知。
+  </footer>
+</main>
+
+<dialog id="detail"><div id="detailBody"></div><p><button class="btn plain" onclick="detail.close()">关闭</button></p></dialog>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "—").replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const ls = {get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } },
+            set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} }};
+let state = null, clockOffset = 0, seenAlarm = null, audio = null;
+const ui = {dep: ls.get("dep-filter") || "all", unl: ls.get("unl-filter") || "active", tab: "active",
+            main: ls.get("main-tab") || "send", origin: ls.get("origin-tab") || "today", send: ls.get("send-tab") || "bwi",
+            depAll: false, unlAll: false, alertAll: false, comingAll: false, arrivedAll: false, sort: {}};
+const PAGE = 15;
+{ const m = location.hash.match(/tab=(recv|send|alert)/); if (m) ui.main = m[1];  // direct link to a tab
+  const o = location.hash.match(/origin=([\w.]+)/); if (o) ui.origin = o[1]; }
+
+/* ---- time helpers (display only; deadlines come from the backend) ---- */
+const serverNow = () => Date.now() + clockOffset;
+const hhmmss = (ms) => { const s = Math.max(0, Math.floor(Math.abs(ms) / 1000));
+  return [Math.floor(s / 3600), Math.floor(s % 3600 / 60), s % 60].map((x) => String(x).padStart(2, "0")).join(":"); };
+const md = (t) => t ? t.slice(5, 16) : "—";              // "2026-10-16 23:00" -> "10-16 23:00"
+const zhMargin = (m) => !m ? "已完成" : m.replace(/^early (\d+)h (\d+)m (\d+)s$/, "提前 $1小时$2分$3秒")
+  .replace(/^late (\d+)h (\d+)m (\d+)s$/, "晚点 $1小时$2分$3秒");
+const zhNote = (n) => (n || "—").replace("Reminder sent", "已发送提醒").replace("Alert sent", "已发送截止告警")
+  .replace("Reminder recorded (muted / not live)", "提醒已记录（未实时发送）").replace("Alert recorded (muted / not live)", "告警已记录（未实时发送）")
+  .replace(/Completed — departed \(on time\) \(backfill, not notified\)/, "已完成（历史记录，未通知）")
+  .replace(/Completed — departed \(late\) \(backfill, not notified\)/, "晚点完成（历史记录，未通知）")
+  .replace(/Completed — departed \(on time\)/, "已完成（未通知）").replace(/Completed — departed \(late\)/, "晚点完成（未通知）")
+  .replace(/^Completed$/, "已完成·已通知").replace(/Completed(?=;|$)/, "已完成·已通知");
+function countdown(deadlineIso, done) {
+  if (done || !deadlineIso) return {text: done ? "已完成" : "—", cls: "idle"};
+  const left = new Date(deadlineIso).getTime() - serverNow();
+  if (left < 0) return {text: "超时 " + hhmmss(left), cls: "bad"};
+  const min = left / 60000;
+  return {text: hhmmss(left), cls: min <= 5 ? "urgent" : min <= 30 ? "warn" : "ok"};
+}
+
+/* ---- generic table with sorting / search / paging ---- */
+const searching = () => $("q").value.trim();
+function matches(r) {
+  const q = $("q").value.trim().toLowerCase();
+  return !q || [r.taskNo, r.licensePlateNo, r.route, r.placeOfOrigin, r.destination, r.alert_type]
+    .some((v) => String(v ?? "").toLowerCase().includes(q));
+}
+function render(tableId, moreId, cols, rows, opt) {
+  const key = tableId, sort = ui.sort[key];
+  rows = rows.filter(matches);
+  if (sort) {
+    const c = cols.find((x) => x.k === sort.k);
+    rows = [...rows].sort((a, b) => { const x = c.sv ? c.sv(a) : a[c.k], y = c.sv ? c.sv(b) : b[c.k];
+      return (x == null) - (y == null) || (x < y ? -1 : x > y ? 1 : 0) * sort.dir; });
+  }
+  const all = opt.all, shown = all ? rows : rows.slice(0, PAGE);
+  $(tableId).innerHTML = `<thead><tr>${cols.map((c) => `<th data-sort="${c.sort === false ? "" : c.k}" data-table="${key}"
+      class="${c.sort === false ? "nosort" : ""}">${c.h}${sort && sort.k === c.k ? `<span class="arrow">${sort.dir > 0 ? "▲" : "▼"}</span>` : ""}</th>`).join("")}</tr></thead>
+    <tbody>${shown.map((r) => `<tr class="${opt.rowClass ? opt.rowClass(r) : ""}" data-seg="${r.segment_id ?? ""}">
+      ${cols.map((c) => `<td class="${c.cls || ""}">${c.f(r)}</td>`).join("")}</tr>`).join("")}</tbody>`;
+  if (!rows.length) $(tableId).insertAdjacentHTML("beforeend", `<tbody><tr><td colspan="${cols.length}" class="empty">${opt.empty || "暂无数据"}</td></tr></tbody>`);
+  if (!$(moreId)) return;
+  $(moreId).innerHTML = rows.length > PAGE ? `<span class="small">显示 ${shown.length} / ${rows.length} 条</span>
+    <button class="btn plain" data-more="${opt.flag}">${all ? "收起" : "显示全部"}</button>` : `<span class="small">共 ${rows.length} 条</span>`;
+}
+
+/* ---- A: header chips + banners ---- */
+function renderHeader(s) {
+  const h = s.health, sh = s.shift, f = s.feishu;
+  const tms = h.stale ? ["bad", `TMS数据过期（最后成功 ${md(h.last_ok_et)}）`] : ["ok", `TMS在线 · ${h.last_ok_et.slice(11)} ET 更新`];
+  const shift = sh.alerts_enabled ? ["ok", `班次运行中 · 启动 ${md(sh.confirmed_start_et)}`] : ["warn", "班次未开始 · 提醒已静音"];
+  const fs = !f.enabled ? ["bad", "飞书关闭"] : f.test_mode ? ["warn", "飞书测试模式"]
+    : f.live_this_shift ? (f.last && !f.last.ok ? ["bad", "飞书发送失败"] : ["ok", "飞书正常（本班次实时）"])
+    : f.authorization_pending ? ["warn", "飞书已授权·下一班次生效"] : ["warn", "飞书未授权本班次"];
+  const open = ["ok", "收车营业 12:00–19:00"];
+  $("chips").innerHTML = [tms, shift, open, fs].map(([c, t]) => `<span class="chip"><span class="dot ${c}"></span>${esc(t)}</span>`).join("") +
+    `<span class="chip">报表日 ${esc(sh.reporting_date)}</span>`;
+  $("btnStart").disabled = sh.alerts_enabled; $("btnEnd").disabled = !sh.alerts_enabled;
+
+  const out = [], sys = s.system.map((a) => a.reason).join(" · ");
+  if (h.stale || sys) out.push(`<div class="banner bad">⚠ TMS 数据可能已过期，页面信息不是最新：${esc(sys || h.last_error || "最后成功更新 " + h.last_ok_et + " ET")}</div>`);
+  if (sh.open_overnight_warning) out.push(`<div class="banner warn">班次自 ${esc(sh.confirmed_start_et)} 起仍未结束，已跨过报表日。请确认仍在作业或结束班次。
+    <button class="btn plain" data-shift="confirm-open">仍在作业</button><button class="btn plain" data-shift="end">结束班次</button></div>`);
+  if (sh.manual_arrival_without_shift) out.push(`<div class="banner info">TMS 已有人工签到（${esc(sh.earliest_manual_ref.time_et)} · ${esc(sh.earliest_manual_ref.taskNo)}），但班次尚未开始。
+    <button class="btn start" data-shift="start">上班 Start Shift</button></div>`);
+  else if (!sh.alerts_enabled && sh.reminder_sent_et) out.push(`<div class="banner warn">🔔 新的工作日即将开始，请确认仓库已开始作业。
+    <button class="btn start" data-shift="start">上班 Start Shift</button></div>`);
+  $("banners").innerHTML = out.join("");
+}
+
+/* ---- B: cards ---- */
+function renderCards(c) {
+  const cards = [["c-dep", "🚚 待发车", c.dep_waiting], ["c-done", "✅ 已发车", c.dep_done], ["c-unl", "📦 待卸车", c.unload_waiting],
+                 ["c-near", "🟡 即将超时", c.near_deadline], ["c-over", "🔴 已超时", c.overdue], ["c-ops", "⚠️ 操作异常", c.op_issues]];
+  $("cards").innerHTML = cards.map(([cls, k, v]) => `<div class="card ${cls} ${(cls === "c-over" || cls === "c-ops") && v ? "hot" : ""}">
+    <div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+}
+
+/* ---- C: departures ---- */
+const DEP = {
+  Pending: ["t-info", "待发车"], Overdue: ["t-bad", "已超时·未人工发车"], "On Time": ["t-ok", "准时"],
+};
+function depView(r) {
+  const left = r.deadline ? new Date(r.deadline).getTime() - serverNow() : null;
+  if (r.status === "Truck not at BWI") return {...r, key: "notyet", left: null};
+  const invalid = r.status.startsWith("Voided") || r.status.startsWith("Validity");
+  let key = invalid ? "invalid" : r.manual_et ? (r.status.startsWith("Late") ? "late" : "done")
+    : left < 0 ? "overdue" : left <= 30 * 60000 ? "near" : left > 12 * 3600000 ? "future" : "pending";
+  return {...r, key, left};
+}
+const depFilters = [["all", "全部", () => true], ["pending", "待发车", (r) => ["pending", "near", "future"].includes(r.key)],
+  ["near", "即将超时", (r) => r.key === "near"], ["overdue", "已超时", (r) => r.key === "overdue"],
+  ["done", "已发车", (r) => r.key === "done" || r.key === "late"]];
+function renderDepartures(s) {
+  $("opDate").textContent = s.reporting_date || "";
+  const today = s.departures.map(depView).filter((r) => r.op_date === s.reporting_date ||
+    ["overdue", "near", "pending"].includes(r.key));                          // today + anything still open
+  const groups = [["bwi", "始发地 BWI", (r) => !r.chain], ["chain", "串点发车（始发地不是 BWI）", (r) => r.chain]];
+  $("sendTabs").innerHTML = groups.map(([k, label, f]) => `<button data-send="${k}" class="${ui.send === k ? "on" : ""}">${label}<span class="n">${today.filter(f).length}</span></button>`).join("");
+  const rows = today.filter(groups.find((g) => g[0] === ui.send)[2]);
+  const routes = {};
+  rows.filter((r) => r.key !== "invalid").forEach((r) => { const g = routes[r.route] ||= {n: 0, done: 0, late: 0, over: 0, wait: 0};
+    g.n++; if (r.manual_et) g.done++; if (r.key === "late") g.late++; if (r.key === "overdue") g.over++; if (r.key === "notyet") g.wait++; });
+  $("routeProgress").innerHTML = Object.keys(routes).sort().map((k) => { const g = routes[k];
+    return `<div class="prog ${g.late || g.over ? "late" : ""}"><div class="r">${esc(k)}</div><div class="c">已发 ${g.done} / ${g.n}</div>
+      <div class="bar"><span style="width:${g.n ? Math.round(100 * g.done / g.n) : 0}%"></span></div>
+      <div class="small">${g.over ? `<b style="color:var(--bad)">超时未发 ${g.over}</b> · ` : ""}${g.late ? `晚点 ${g.late} · ` : ""}${g.wait ? `车未到BWI ${g.wait}` : ""}</div></div>`; }).join("")
+    || `<div class="small">今天作业日暂无${ui.send === "chain" ? "串点" : "始发 BWI 的"}发车任务（TMS 尚未创建或已全部结束）</div>`;
+  const order = {overdue: 0, near: 1, pending: 2, future: 3, late: 4, done: 5, invalid: 6};
+  rows.sort((a, b) => order[a.key] - order[b.key] || (a.deadline < b.deadline ? -1 : 1));
+  // counts follow the search box, so a filter count always equals the rows it shows
+  $("depFilters").innerHTML = depFilters.map(([k, label, f]) => `<button data-dep="${k}" class="${ui.dep === k ? "on" : ""}">${label}<span class="n">${rows.filter(matches).filter(f).length}</span></button>`).join("");
+  const filt = depFilters.find((x) => x[0] === ui.dep)[2];
+  const tag = (r) => r.key === "notyet" ? `<span class="tag t-idle">车辆未到BWI</span>` : r.key === "invalid" ? `<span class="tag t-idle" title="${esc(r.validity_detail)}">${r.status.startsWith("Voided") ? "已作废" : "有效性未确认"}</span>`
+    : r.key === "late" ? `<span class="tag t-bad">晚点</span>` : r.key === "near" ? `<span class="tag t-warn">即将截止</span>`
+    : r.key === "future" ? `<span class="tag t-idle">未来班次</span>` : `<span class="tag ${(DEP[r.status] || ["t-idle"])[0]}">${(DEP[r.status] || [0, r.status])[1]}</span>`;
+  render("depTable", "depMore", [
+    {h: "线路", k: "route", f: (r) => `<span class="route">${esc(r.route)}</span>`},
+    {h: "任务编号", k: "taskNo", f: (r) => `<span class="mono">${esc(r.taskNo)}</span>`},
+    {h: "车牌号", k: "licensePlateNo", f: (r) => esc(r.licensePlateNo)},
+    {h: "规定发车时间 (ET)", k: "deadline", f: (r) => `<b class="mono">${md(r.deadline_et)}</b>`},
+    {h: "TMS计划时间 (ET)", k: "tms_planned_et", f: (r) => `<span class="mono">${md(r.tms_planned_et)}</span>` +
+       (r.discrepancy_min ? ` <span class="small">(${r.discrepancy_min > 0 ? "+" : ""}${r.discrepancy_min}分)</span>` : "")},
+    ...(ui.send === "chain" ? [{h: "车辆到BWI (ET)", k: "bwi_arrival_et", f: (r) => r.bwi_arrival_et ? `<span class="mono">${md(r.bwi_arrival_et)}</span>`
+       : `<span class="small">未到 · 预计 ${esc(r.inbound_eta ? r.inbound_eta.slice(5) : "未知")}</span>`}] : []),
+    {h: "人工发车时间 (ET)", k: "manual_et", f: (r) => r.manual_et ? `<span class="mono">${md(r.manual_et)}</span>` : `<span class="small">未完成</span>`},
+    {h: "剩余时间", k: "left", sv: (r) => r.manual_et || r.key === "invalid" ? Infinity : r.left, cls: "mono",
+     f: (r) => r.key === "invalid" ? "—" : r.manual_et ? `<span class="cd idle">${esc(zhMargin(r.margin))}</span>`
+       : `<span class="cd ${countdown(r.deadline).cls}" data-cd="${r.deadline}">${countdown(r.deadline).text}</span>`},
+    {h: "发车状态", k: "key", f: tag},
+    {h: "通知", k: "notification", f: (r) => `<span class="small">${esc(zhNote(r.notification))}</span>`, sort: false},
+  ], rows.filter(filt), {all: ui.depAll, flag: "depAll", empty: searching() ? `没有与“${esc(searching())}”匹配的发车任务` : "暂无符合条件的发车任务",
+     rowClass: (r) => ({overdue: "r-overdue", near: "r-warn", done: "r-done", late: "r-overdue", future: "r-future", invalid: "r-future"})[r.key] || ""});
+}
+
+/* ---- D: receiving (by origin; arrived / not arrived; predicted arrival) ---- */
+const UNL_TAG = {overdue: "t-bad", warn: "t-urgent", working: "t-info", open: "t-warn", pending: "t-idle", done: "t-ok", qty: "t-warn",
+                 late: "t-bad", uncertain: "t-idle", unknown: "t-idle"};
+const BUCKET = {today: ["t-info", "今日"], next: ["t-idle", "次日"], later: ["t-idle", "更晚"], overdue: ["t-bad", "已过预计"]};
+function renderReceiving(s) {
+  const w = s.receiving_window || {};
+  $("recvWindow").innerHTML = `<b>今日收车窗口（${esc(w.day)}）：${esc(md(w.start_et))} – ${esc(md(w.end_et))} ET</b> · 前一天 19:00 后到 BWI 的车计入当天`;
+  const all = s.receiving.filter(matches);
+  // 今日收车 = this shift only (19:00 yesterday to 19:00 today), by arrival time or predicted arrival time.
+  const todays = all.filter((r) => r.bucket === "today");
+  const origins = [...new Set(s.receiving.map((r) => r.origin))].sort((a, b) =>
+    s.receiving.filter((r) => r.origin === b).length - s.receiving.filter((r) => r.origin === a).length);
+  if (ui.origin !== "today" && !origins.includes(ui.origin)) ui.origin = "today";
+  const tab = (k, label, rows) => `<button data-origin="${k}" class="${ui.origin === k ? "on" : ""}">${esc(label)}<span class="n">${rows.filter((r) => r.arrived).length}/${rows.length}</span></button>`;
+  $("originTabs").innerHTML = tab("today", "今日收车（本班次）", todays) + origins.map((o) => tab(o, o.replace(/\.H$/, ""), all.filter((r) => r.origin === o))).join("");
+  // 今日收车: this window's work. Origin tab: everything from that origin that has left and is not here yet, plus
+  // what arrived in this window.
+  const rows = ui.origin === "today" ? todays : all.filter((r) => r.origin === ui.origin);
+  const coming = rows.filter((r) => !r.arrived), arrived = rows.filter((r) => r.arrived);
+  const sum = (label, n, cls) => `<div class="prog"><div class="small">${label}</div><div class="c" style="color:${cls || "inherit"}">${n}</div></div>`;
+  const shift = rows.filter((r) => r.bucket === "today");
+  const cards = [
+    sum("本班次应收", shift.length), sum("已到达", shift.filter((r) => r.arrived).length, "var(--ok)"),
+    sum("在途未到", shift.filter((r) => !r.arrived && r.departed).length),
+    sum("未发车", shift.filter((r) => !r.arrived && !r.departed).length),
+    sum("已过预计仍未到", shift.filter((r) => !r.arrived && r.late).length, "var(--bad)")];
+  if (ui.origin !== "today") {   // the origin tab also counts what falls outside this shift
+    const out = rows.filter((r) => r.bucket !== "today");
+    cards.push(sum("班次外在途", out.length), sum("其中预计晚于本班次", out.filter((r) => r.bucket === "next" || r.bucket === "later").length),
+               sum("其中早于本班次仍未到", out.filter((r) => r.bucket === "overdue").length, "var(--bad)"));
+  }
+  $("recvSummary").innerHTML = cards.join("");
+  $("comingCount").textContent = `${coming.length} 辆`; $("arrivedCount").textContent = `${arrived.length} 辆`;
+  const etaCell = (r) => { const left = new Date(r.time).getTime() - serverNow();
+    return left < 0 ? `<span class="cd bad">已过预计 ${hhmmss(left)}</span>` : `<span class="cd ok" data-eta="${r.time}">${hhmmss(left)}</span>`; };
+  render("recvComing", "recvComingMore", [
+    {h: "归属", k: "bucket", f: (r) => `<span class="tag ${BUCKET[r.bucket][0]}">${BUCKET[r.bucket][1]}</span>`},
+    {h: "任务编号", k: "taskNo", f: (r) => `<span class="mono">${esc(r.taskNo)}</span>`},
+    {h: "始发地", k: "origin", f: (r) => esc(r.origin)},
+    {h: "车牌号", k: "licensePlateNo", f: (r) => esc(r.licensePlateNo)},
+    {h: "类型", k: "kind", f: (r) => esc(r.kind)},
+    {h: "始发地发车 (ET)", k: "origin_departed_et", f: (r) => r.origin_departed_et ? `<span class="mono">${md(r.origin_departed_et)}</span>` : `<span class="small">未发车</span>`},
+    {h: "计划到达 (ET)", k: "planned_arrival_et", f: (r) => `<span class="mono">${md(r.planned_arrival_et)}</span>`},
+    {h: "预计到达 (ET)", k: "time", f: (r) => `<b class="mono">${md(r.time_et)}</b> <span class="small">${esc(r.source)}</span>`},
+    {h: "距到达", k: "time", cls: "mono", f: etaCell},
+    {h: "车辆状态", k: "vehicle_status", f: (r) => `<span class="small">${esc(r.vehicle_status)}</span>`},
+  ], coming, {all: ui.comingAll, flag: "comingAll", empty: ui.origin === "today" ? "本班次没有待到达的车" : "该始发地没有在途车辆",
+     rowClass: (r) => r.late ? "r-warn" : r.bucket !== "today" ? "r-future" : ""});
+  render("recvArrived", "recvArrivedMore", [
+    {h: "任务编号", k: "taskNo", f: (r) => `<span class="mono">${esc(r.taskNo)}</span>`},
+    {h: "始发地", k: "origin", f: (r) => esc(r.origin)},
+    {h: "车牌号", k: "licensePlateNo", f: (r) => esc(r.licensePlateNo)},
+    {h: "类型", k: "kind", f: (r) => esc(r.kind)},
+    {h: "到达时间 (ET)", k: "time", f: (r) => `<b class="mono">${md(r.time_et)}</b> <span class="small">${esc(r.source.replace("实际到达·", ""))}</span>`},
+    {h: "卸车进度", k: "progress", f: (r) => esc(r.progress)},
+    {h: "首枪截止 (ET)", k: "first_scan_deadline", f: (r) => `<span class="mono">${md(r.first_scan_deadline_et)}</span>`},
+    {h: "剩余", k: "first_scan_deadline", cls: "mono", f: (r) => ["open", "working", "warn"].includes(r.unload_key)
+       ? `<span class="cd ${countdown(r.first_scan_deadline).cls}" data-cd="${r.first_scan_deadline}">${countdown(r.first_scan_deadline).text}</span>` : "—"},
+    {h: "卸车状态", k: "unload_key", f: (r) => `<span class="tag ${UNL_TAG[r.unload_key] || "t-idle"}">${esc(r.unload_status || "—")}</span>`},
+  ], arrived, {all: ui.arrivedAll, flag: "arrivedAll", empty: "本窗口还没有到达的车",
+     rowClass: (r) => ({overdue: "r-overdue", warn: "r-warn", done: "r-done"})[r.unload_key] || ""});
+}
+
+function renderMainTabs(s) {
+  const nAlert = s.system.length + s.time_alerts.length + s.compliance_alerts.length;
+  document.querySelectorAll("#mainTabs button").forEach((b) => {
+    b.classList.toggle("on", b.dataset.main === ui.main);
+    const base = {recv: "📦 收车", send: "🚛 发车", alert: "⚠️ 异常预警"}[b.dataset.main];
+    b.innerHTML = base + (b.dataset.main === "alert" && nAlert ? `<span class="n">${nAlert}</span>` : "");
+  });
+  ["recv", "send", "alert"].forEach((k) => { $("tab-" + k).hidden = ui.main !== k; });
+}
+
+/* ---- E: alerts ---- */
+const TYPE = (t) => ({DEPARTURE: "发车（TMS计划）", BRANCH_DEPARTURE: "发车时效", DEPARTURE_DONE: "发车完成", UNLOAD: "首枪时效",
+  UNLOAD_60: "到车60分钟未卸完",
+  ARRIVAL: "到车记录", "OP:ARRIVAL": "人工签到", "OP:DEPARTURE": "人工发车", "OP:LOADING": "装车", "OP:UNLOADING": "卸车操作",
+  "SYSTEM:FEED": "系统"})[t] || (t.startsWith("DATA:") ? "数据核查·" + t.slice(5).toLowerCase().replaceAll("_", " ") : t);
+const STAGE = {OVERDUE: ["t-bad", "已超时"], MISSING: ["t-bad", "TMS缺失"], RISK: ["t-warn", "待确认风险"], CHECK: ["t-info", "数据待核实"],
+  LATE: ["t-bad", "晚点/超时"], OK: ["t-ok", "已完成"], UNCERTAIN: ["t-idle", "时间不确定"], EVENT: ["t-idle", "记录"], SKIP: ["t-idle", "未判定"],
+  WAITING: ["t-idle", "等待"], PENDING: ["t-idle", "待定"]};
+const zhReason = (r) => String(r || "")
+  .replace(/^First unloading scan not shown in TMS records.*deadline passed$/, "TMS 尚无首枪扫描记录，已过首枪截止")
+  .replace(/^First unloading scan not shown in TMS records.*$/, "TMS 尚无首枪扫描记录")
+  .replace(/^Arrived (\S+ \S+), 60 min passed and not unloaded yet \((\d+)\/(\d+) bags\)$/, "到车 $1，已满 60 分钟数量仍未对上（已卸 $2 / 装车 $3 袋）")
+  .replace(/^Arrived (\S+ \S+), 60 min passed and not unloaded yet \(first scan not recorded\)$/, "到车 $1，已满 60 分钟仍无卸车扫描")
+  .replace(/^TMS unload marked complete, but fewer bags unloaded than due at BWI \((\d+) of (\d+) bags\)$/, "TMS 已标记卸车完成，但卸车数少于应卸（$1/$2 袋）")
+  .replace(/^No manual departure in TMS; deadline passed$/, "TMS 尚无人工发车，已过发车截止")
+  .replace(/^No manual departure in TMS; reminder, (\d+) min left$/, "TMS 尚无人工发车，距截止 $1 分钟")
+  .replace(/^Truck has not arrived at BWI yet.*$/, "车辆尚未到达 BWI，暂不判断发车");
+const stageTag = (a) => a.alert_type === "UNLOAD_60" && a.stage === "WARN" ? `<span class="tag t-warn">到车已满60分钟</span>` : a.stage === "WARN" ? `<span class="tag ${a.priority === "high" ? "t-urgent" : "t-warn"}">${a.priority === "high" ? "紧急·剩5分钟" : "提醒·剩" + a.warn_level + "分钟"}</span>`
+  : `<span class="tag ${(STAGE[a.stage] || ["t-idle"])[0]}">${(STAGE[a.stage] || [0, a.stage])[1]}</span>`;
+const ack = (a) => (a.acknowledged_at ? `<span class="small">已确认查看</span>`
+  : `<button class="btn plain" data-ack="${a.id}" title="仅表示已查看，不代表 TMS 操作已完成">确认查看</button>`) +
+  (a.closable ? ` <button class="btn plain" data-close="${a.id}" title="需要姓名和原因，记录保留">${a.alert_type === "UNLOAD_60" ? "手动确认" : "关闭"}</button>`
+              : ` <span class="tag t-idle" title="需保留：TMS 出现对应操作后自动结束">保留</span>`);
+function renderAlerts(s) {
+  const active = [...s.system, ...s.time_alerts, ...s.compliance_alerts];
+  document.querySelectorAll("#tabs button").forEach((b) => {
+    b.classList.toggle("on", b.dataset.tab === ui.tab);
+    const n = b.dataset.tab === "active" ? active.length : b.dataset.tab === "ops" ? s.compliance_alerts.length : 0;
+    b.innerHTML = b.textContent.replace(/\d+$/, "") + (n ? `<span class="n">${n}</span>` : "");
+  });
+  if (ui.tab === "ops") {
+    const OPS = ["LOADING", "DEPARTURE", "ARRIVAL", "UNLOADING"], ZH = {LOADING: "装车", DEPARTURE: "发车", ARRIVAL: "签到", UNLOADING: "卸车"};
+    const ST = {VERIFIED: ["t-ok", "已完成"], PENDING: ["t-idle", "待处理"], RISK: ["t-warn", "风险"], MISSING: ["t-bad", "缺失"],
+                UNCERTAIN: ["t-idle", "不确定"], NOT_REQUIRED: ["t-idle", "无需"]};
+    return render("alertTable", "alertMore", [
+      {h: "任务编号", k: "taskNo", f: (r) => `<span class="mono">${esc(r.taskNo)}</span>`},
+      {h: "线路", k: "destination", f: (r) => `${esc(r.placeOfOrigin)} → ${esc(r.destination)}`},
+      {h: "车牌号", k: "licensePlateNo", f: (r) => esc(r.licensePlateNo)},
+      ...OPS.map((o) => ({h: ZH[o], k: o, sort: false, f: (r) => r.ops[o] ? `<span class="tag ${(ST[r.ops[o].status] || ["t-idle"])[0]}" title="${esc(r.ops[o].reason)}">${(ST[r.ops[o].status] || [0, r.ops[o].status])[1]}</span>` : "—"})),
+    ], s.compliance, {all: ui.alertAll, flag: "alertAll", empty: "暂无需要关注的操作记录"});
+  }
+  const rows = ui.tab === "active" ? active : s.closed;
+  render("alertTable", "alertMore", [
+    {h: "状态", k: "stage", f: stageTag},
+    {h: "类型", k: "alert_type", f: (a) => esc(TYPE(a.alert_type))},
+    {h: "任务编号", k: "taskNo", f: (a) => `<span class="mono">${esc(a.taskNo)}</span>`},
+    {h: "线路", k: "destination", f: (a) => a.placeOfOrigin ? `${esc(a.placeOfOrigin)} → ${esc(a.destination)}` : "—"},
+    {h: "车牌号", k: "licensePlateNo", f: (a) => esc(a.licensePlateNo)},
+    {h: "截止 (ET)", k: "deadline", f: (a) => `<span class="mono">${md(a.deadline_et)}</span>`},
+    ...(ui.tab === "history" ? [{h: "结果", k: "outcome", f: (a) => esc(a.outcome) + (a.muted ? ' <span class="tag t-idle">已静音</span>' : "") +
+        (a.acknowledged_at ? ' <span class="tag t-info">已确认查看</span>' : "")}] : []),
+    {h: "说明", k: "reason", cls: "wrapcell", sort: false, f: (a) => esc(zhReason(a.reason))},
+    ...(ui.tab === "active" ? [{h: "", k: "ack", sort: false, f: ack}] : []),
+  ], rows, {all: ui.alertAll, flag: "alertAll", empty: ui.tab === "active" ? "当前没有需要处理的异常" : "过去 24 小时没有记录",
+     rowClass: (a) => ["OVERDUE", "MISSING"].includes(a.stage) ? "r-overdue" : a.stage === "WARN" || a.stage === "RISK" ? "r-warn" : ""});
+}
+
+/* ---- sound (opt-in; browser autoplay rules need a click) ---- */
+function beep() { if (!audio) return; const o = audio.createOscillator(), g = audio.createGain();
+  o.frequency.value = 880; g.gain.value = 0.15; o.connect(g); g.connect(audio.destination); o.start(); o.stop(audio.currentTime + 0.35); }
+function soundCheck(s) {
+  const urgent = [...s.time_alerts, ...s.compliance_alerts].filter((a) => a.stage === "OVERDUE" || a.stage === "MISSING" || a.priority === "high")
+    .map((a) => `${a.id}:${a.stage}:${a.warn_level}`);
+  if (seenAlarm && $("sound").checked && urgent.some((k) => !seenAlarm.has(k))) beep();
+  seenAlarm = new Set(urgent);
+}
+$("sound").checked = ls.get("bwi-sound") === "1";
+$("sound").addEventListener("change", () => { ls.set("bwi-sound", $("sound").checked ? "1" : "0");
+  if ($("sound").checked) { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume(); beep(); } });
+
+/* ---- render + data ---- */
+function renderAll() {
+  if (!state) return;
+  const q = searching();
+  $("searchbar").hidden = !q;
+  $("searchbar").innerHTML = q ? `🔍 搜索中：“${esc(q)}” — 下方所有表格与筛选数量只显示匹配的记录。 <button class="btn plain" data-clear="1">清除搜索</button>` : "";
+  renderHeader(state); renderCards(state.cards); renderMainTabs(state);
+  renderReceiving(state); renderDepartures(state); renderAlerts(state);
+}
+async function load() {
+  try {
+    const s = await (await fetch("/api/state", {cache: "no-store"})).json();
+    if (s.now_iso) clockOffset = new Date(s.now_iso).getTime() - Date.now();
+    state = s; renderAll(); soundCheck(s);
+  } catch (e) {
+    $("banners").innerHTML = `<div class="banner bad">⚠ 无法连接监控服务，页面数据可能已过期。</div>`;
+  }
+}
+setInterval(() => {  // smooth countdowns from backend deadlines; display only, never triggers notifications
+  document.querySelectorAll("[data-cd]").forEach((el) => { const c = countdown(el.dataset.cd); el.textContent = c.text; el.className = "cd " + c.cls; });
+  document.querySelectorAll("[data-eta]").forEach((el) => { const left = new Date(el.dataset.eta).getTime() - serverNow();
+    el.textContent = left < 0 ? "已过预计 " + hhmmss(left) : hhmmss(left); el.className = "cd " + (left < 0 ? "bad" : "ok"); });
+}, 1000);
+
+/* ---- details ---- */
+async function showSegment(id) {
+  if (!id || id === "0") return;
+  const d = await (await fetch("/api/segment/" + id)).json();
+  const list = (rows, f) => rows.length ? rows.map(f).join("") : '<p class="small">无</p>';
+  $("detailBody").innerHTML = `<h2>${esc(d.segment.taskNo)} · ${esc(d.segment.placeOfOrigin)} → ${esc(d.segment.destination)}</h2>
+    <dl>${Object.entries(d.segment).map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
+    <h3>当前规则结果</h3>${list(d.findings, (f) => `<p>${stageTag(f)} ${esc(TYPE(f.alert_type))} · 截止 ${esc(f.deadline_et)} ET · ${esc(f.reason)}</p>`)}
+    <h3>预警历史</h3>${list(d.events, (e) => `<p class="small">${esc(e.at)} · #${e.alert_id} · ${esc(e.from_stage)} → ${esc(e.to_stage)} · ${esc(e.note)}</p>`)}
+    <h3>通知记录</h3>${list(d.notifications, (n) => `<p class="small">${esc(n.at)} · ${esc(n.channel)} ${n.ok ? "" : "失败 " + esc(n.error)}</p><pre>${esc(n.text)}</pre>`)}`;
+  $("detail").showModal();
+}
+
+/* ---- shift actions (unchanged backend behaviour) ---- */
+async function closeAlert(id) {
+  const user = (prompt("手动确认 / 关闭这条告警。请输入您的姓名：") || "").trim(); if (!user) return;
+  const reason = (prompt("原因（例如：少的一袋留在车上已核实、已电话确认）：") || "").trim(); if (!reason) return;
+  const headers = {"Content-Type": "application/json"};
+  if (state?.shift?.admin_token_required) headers["X-Admin-Token"] = prompt("管理员口令：") || "";
+  const r = await fetch(`/api/alerts/${id}/close`, {method: "POST", headers, body: JSON.stringify({user, reason})});
+  if (!r.ok) { $("banners").insertAdjacentHTML("afterbegin", `<div class="banner bad">无法关闭：${esc((await r.json()).error)}</div>`); return; }
+  load();
+}
+
+async function shiftAction(action) {
+  let extra = {};
+  if (action === "opening") {
+    const hhmm = (prompt("今天仓库实际开门时间（HH:MM，美东时间）：") || "").trim();
+    if (!hhmm) return; extra = {time: hhmm};
+  }
+  if (action === "end") {
+    const open = (state?.departures || []).map(depView).filter((r) => ["pending", "near", "overdue"].includes(r.key));
+    if (open.length && !confirm(`还有 ${open.length} 个发车任务没有 TMS 人工发车记录：\n\n` +
+        open.map((r) => `${r.route}  ${r.taskNo}  截止 ${md(r.deadline_et)}`).join("\n") +
+        "\n\n结束班次后这些任务仍显示在监控台，但飞书通知会停止。确定结束班次吗？")) return;
+  }
+  const verb = {start: "开始监控（开启提醒，不改变任何卸车截止时间）", end: "结束班次并停止提醒",
+                opening: "确认仓库开门时间", "confirm-open": "确认班次仍在作业"}[action];
+  const user = (prompt(`${verb}。请输入您的姓名：`) || "").trim();
+  if (!user) return;
+  const headers = {"Content-Type": "application/json"};
+  if (state?.shift?.admin_token_required) headers["X-Admin-Token"] = prompt("管理员口令：") || "";
+  const r = await fetch(`/api/shift/${action}`, {method: "POST", headers, body: JSON.stringify({user, ...extra})});
+  if (!r.ok) { $("banners").insertAdjacentHTML("afterbegin", `<div class="banner bad">操作被拒绝：${esc((await r.json()).error)}</div>`); return; }
+  load();
+}
+
+document.addEventListener("click", async (e) => {
+  const t = e.target.closest("[data-shift],[data-ack],[data-close],[data-main],[data-origin],[data-send],[data-dep],[data-unl],[data-tab],[data-more],[data-clear],th[data-sort],tr[data-seg]");
+  if (!t) return;
+  if (t.dataset.clear) { $("q").value = ""; return renderAll(); }
+  if (t.dataset.main) { ui.main = t.dataset.main; ls.set("main-tab", ui.main); return renderAll(); }
+  if (t.dataset.origin) { ui.origin = t.dataset.origin; ls.set("origin-tab", ui.origin); return renderAll(); }
+  if (t.dataset.send) { ui.send = t.dataset.send; ls.set("send-tab", ui.send); return renderAll(); }
+  if (t.dataset.close) { e.stopPropagation(); return closeAlert(t.dataset.close); }
+  if (t.dataset.shift) return shiftAction(t.dataset.shift);
+  if (t.dataset.ack) { e.stopPropagation(); await fetch(`/api/alerts/${t.dataset.ack}/ack`, {method: "POST"}); return load(); }
+  if (t.dataset.dep) { ui.dep = t.dataset.dep; ls.set("dep-filter", ui.dep); return renderAll(); }
+  if (t.dataset.unl) { ui.unl = t.dataset.unl; ls.set("unl-filter", ui.unl); return renderAll(); }
+  if (t.dataset.tab) { ui.tab = t.dataset.tab; ui.alertAll = false; return renderAll(); }
+  if (t.dataset.more) { ui[t.dataset.more] = !ui[t.dataset.more]; return renderAll(); }
+  if (t.dataset.sort) { const cur = ui.sort[t.dataset.table];
+    ui.sort[t.dataset.table] = cur && cur.k === t.dataset.sort ? (cur.dir > 0 ? {k: cur.k, dir: -1} : null) : {k: t.dataset.sort, dir: 1};
+    return renderAll(); }
+  if (t.dataset.seg) showSegment(t.dataset.seg);
+});
+$("q").addEventListener("input", renderAll);
+load();
+setInterval(load, 30000);
+</script>
+</body>
+</html>

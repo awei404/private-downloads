@@ -1,0 +1,1068 @@
+Dashboard: http://127.0.0.1:8766
+[16:53] poll ok: 3687 BWI segments, 3 changed
+🔔 BWI Shift Reminder
+A new working day is approaching. Please confirm that warehouse operations have started.
+新的工作日即将开始，请确认仓库是否已开始作业，并在监控台点击 [START SHIFT / RESUME ALERTS]。
+提醒时间：10-14 16:53 ET
+
+Dashboard: http://127.0.0.1:8766
+[16:55] poll ok: 3687 BWI segments, 7 changed
+[17:06] poll ok: 3687 BWI segments, 1 changed
+Dashboard: http://127.0.0.1:8766
+[17:17] poll ok: 3687 BWI segments, 11 changed
+[17:27] poll ok: 3687 BWI segments, 7 changed
+Dashboard: http://127.0.0.1:8766
+[17:30] poll ok: 3687 BWI segments, 6 changed
+Dashboard: http://127.0.0.1:8766
+[17:39] poll ok: 3687 BWI segments, 0 changed
+[BWI] Unload 60 min (multi-stop: first scan) — timing uncertain (completed between two polls around the deadline)
+Task MT2026101100685 | CNO.H → BWI.H | plate 1B | trailer SB001689
+Deadline 2026-10-13 09:45 ET | now 17:39 ET
+Reason: First unloading scan observed between an unknown time (earlier counts missing) and 2026-10-13 10:49, a window that crosses the deadline 2026-10-13 09:45: timing uncertain
+TMS data as of 2026-10-14 17:39 ET
+
+[17:49] poll ok: 3687 BWI segments, 14 changed
+[18:00] poll ok: 3687 BWI segments, 3 changed
+[18:11] poll ok: 3687 BWI segments, 13 changed
+[18:22] poll ok: 3687 BWI segments, 12 changed
+[18:32] poll ok: 3687 BWI segments, 1 changed
+[18:43] poll ok: 3687 BWI segments, 13 changed
+[18:53] poll ok: 3687 BWI segments, 3 changed
+[19:04] poll ok: 3687 BWI segments, 11 changed
+[19:14] poll ok: 3687 BWI segments, 11 changed
+[19:25] poll ok: 3687 BWI segments, 2 changed
+[19:35] poll ok: 3687 BWI segments, 15 changed
+[19:46] poll ok: 3687 BWI segments, 3 changed
+[19:57] poll ok: 3687 BWI segments, 14 changed
+[20:07] poll ok: 3688 BWI segments, 6 changed
+[20:18] poll ok: 3688 BWI segments, 15 changed
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-14 20:09 (GPS); TMS check-in not yet completed
+Task MT2026101300519 | CNO.H → BWI.H | plate P1315744 | trailer 1013
+Deadline 2026-10-14 20:09 ET | now 20:18 ET
+Reason: Vehicle arrived 2026-10-14 20:09 (GPS); TMS check-in not yet completed
+TMS data as of 2026-10-14 20:18 ET
+
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-14 20:01 (GPS); TMS check-in not yet completed
+Task MT2026101500293 | EWR.H → BWI.H | plate 502597 | trailer -
+Deadline 2026-10-14 20:01 ET | now 20:18 ET
+Reason: Vehicle arrived 2026-10-14 20:01 (GPS); TMS check-in not yet completed
+TMS data as of 2026-10-14 20:18 ET
+
+[20:28] poll ok: 3688 BWI segments, 13 changed
+[BWI] Operation: arrival — not recorded yet (pending risk)
+Task MT2026101500293 | EWR.H → BWI.H | plate 502597 | trailer -
+Deadline 2026-10-14 20:31 ET | now 20:32 ET
+Reason: GPS arrival 2026-10-14 20:01, no manual check-in 30 min after 2026-10-14 20:01
+Action: Record the arrival check-in in TMS
+TMS data as of 2026-10-14 20:28 ET
+
+[BWI] Unload 60 min (single-stop: complete unloading) — 30 min left, not done
+Task MT2026101500293 | EWR.H → BWI.H | plate 502597 | trailer -
+Deadline 2026-10-14 21:01 ET | now 20:32 ET
+Reason: Complete unloading not shown in TMS records (unloaded count missing; meaning unverified); reminder, 30 min left
+Action: Finish unloading the whole truck and scan all bags in TMS
+TMS data as of 2026-10-14 20:28 ET
+
+[20:39] poll ok: 3688 BWI segments, 3 changed
+[BWI] Operation: arrival — not recorded yet (pending risk)
+Task MT2026101300519 | CNO.H → BWI.H | plate P1315744 | trailer 1013
+Deadline 2026-10-14 20:39 ET | now 20:39 ET
+Reason: GPS arrival 2026-10-14 20:09, no manual check-in 30 min after 2026-10-14 20:09
+Action: Record the arrival check-in in TMS
+TMS data as of 2026-10-14 20:39 ET
+
+[BWI] Unload 60 min (multi-stop: first scan) — 30 min left, not done
+Task MT2026101300519 | CNO.H → BWI.H | plate P1315744 | trailer 1013
+Deadline 2026-10-14 21:09 ET | now 20:39 ET
+Reason: First unloading scan not shown in TMS records (unloaded count missing; meaning unverified); reminder, 30 min left
+Action: Start unloading and scan the first bag label in TMS
+TMS data as of 2026-10-14 20:39 ET
+
+[BWI] resolved: Operation: arrival — cleared
+Task MT2026101500293 | EWR.H → BWI.H | plate 502597 | trailer -
+Reason: Manual check-in recorded
+TMS data as of 2026-10-14 20:39 ET
+
+[20:49] poll ok: 3688 BWI segments, 13 changed
+[BWI] resolved: Unload 60 min (single-stop: complete unloading) — completed on time
+Task MT2026101500293 | EWR.H → BWI.H | plate 502597 | trailer -
+Deadline 2026-10-14 21:01 ET | now 20:50 ET
+Reason: Complete unloading observed by 2026-10-14 20:49: on time based on available records
+TMS data as of 2026-10-14 20:49 ET
+
+[21:00] poll ok: 3688 BWI segments, 5 changed
+[BWI] Unload 60 min (multi-stop: first scan) — HIGH PRIORITY — only 5 min left, not done
+Task MT2026101300519 | CNO.H → BWI.H | plate P1315744 | trailer 1013
+Deadline 2026-10-14 21:09 ET | now 21:05 ET
+Reason: First unloading scan not shown in TMS records (unloaded count missing; meaning unverified); strong reminder, 5 min left
+Action: Start unloading and scan the first bag label in TMS
+TMS data as of 2026-10-14 21:00 ET
+
+[BWI] Unload 60 min (multi-stop: first scan) — OVERDUE by 1 min based on TMS records
+Task MT2026101300519 | CNO.H → BWI.H | plate P1315744 | trailer 1013
+Deadline 2026-10-14 21:09 ET | now 21:10 ET
+Reason: First unloading scan not shown in TMS records (unloaded count missing; meaning unverified); deadline passed
+Action: Start unloading and scan the first bag label in TMS
+TMS data as of 2026-10-14 21:00 ET
+
+[21:11] poll ok: 3688 BWI segments, 13 changed
+[BWI] resolved: Operation: arrival — cleared
+Task MT2026101300519 | CNO.H → BWI.H | plate P1315744 | trailer 1013
+Reason: Manual check-in recorded
+TMS data as of 2026-10-14 21:11 ET
+
+[21:21] poll ok: 3688 BWI segments, 13 changed
+[BWI] Unload 60 min (multi-stop: first scan) — timing uncertain (completed between two polls around the deadline)
+Task MT2026101300519 | CNO.H → BWI.H | plate P1315744 | trailer 1013
+Deadline 2026-10-14 21:09 ET | now 21:22 ET
+Reason: First unloading scan observed between an unknown time (earlier counts missing) and 2026-10-14 21:21, a window that crosses the deadline 2026-10-14 21:09: timing uncertain
+TMS data as of 2026-10-14 21:21 ET
+
+[21:32] poll ok: 3688 BWI segments, 4 changed
+[21:42] poll ok: 3688 BWI segments, 12 changed
+[21:53] poll ok: 3688 BWI segments, 5 changed
+[22:04] poll ok: 3688 BWI segments, 8 changed
+[22:14] poll ok: 3688 BWI segments, 13 changed
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-14 22:09 (manual); TMS check-in completed
+Task MT2026101500511 | EWR.H → BWI.H | plate 678 | trailer -
+Deadline 2026-10-14 22:09 ET | now 22:15 ET
+Reason: Vehicle arrived 2026-10-14 22:09 (manual); TMS check-in completed
+TMS data as of 2026-10-14 22:14 ET
+
+[22:25] poll ok: 3688 BWI segments, 4 changed
+[22:35] poll ok: 3688 BWI segments, 14 changed
+[22:46] poll ok: 3688 BWI segments, 16 changed
+[22:57] poll ok: 3688 BWI segments, 2 changed
+[23:07] poll ok: 3688 BWI segments, 13 changed
+[23:18] poll ok: 3688 BWI segments, 3 changed
+[23:29] poll ok: 3688 BWI segments, 13 changed
+[23:39] poll ok: 3688 BWI segments, 13 changed
+[23:50] poll ok: 3688 BWI segments, 2 changed
+[00:00] poll ok: 3688 BWI segments, 11 changed
+[00:11] poll ok: 3688 BWI segments, 3 changed
+[BWI] Monitor feed — needs verification
+Reason: No TMS data since 2026-10-15 00:11 ET (no successful poll)
+Action: Monitoring data may be stale. Refresh GOFO_AUTH / check the service.
+TMS data as of 2026-10-15 00:11 ET
+
+[BWI] resolved: Monitor feed — cleared
+Reason: TMS feed recovered
+TMS data as of 2026-10-15 00:40 ET
+
+[00:40] poll ok: 3688 BWI segments, 16 changed
+[BWI] Monitor feed — needs verification
+Reason: No TMS data since 2026-10-15 00:41 ET (no successful poll)
+Action: Monitoring data may be stale. Refresh GOFO_AUTH / check the service.
+TMS data as of 2026-10-15 00:40 ET
+
+[BWI] resolved: Monitor feed — cleared
+Reason: TMS feed recovered
+TMS data as of 2026-10-15 01:21 ET
+
+[01:21] poll ok: 3694 BWI segments, 25 changed
+[01:32] poll ok: 3694 BWI segments, 15 changed
+[01:42] poll ok: 3694 BWI segments, 16 changed
+[01:53] poll ok: 3694 BWI segments, 6 changed
+[02:03] poll ok: 3695 BWI segments, 13 changed
+[02:14] poll ok: 3695 BWI segments, 10 changed
+[02:24] poll ok: 3695 BWI segments, 16 changed
+[02:35] poll ok: 3695 BWI segments, 17 changed
+[BWI] Monitor feed — needs verification
+Reason: No TMS data since 2026-10-15 02:35 ET (no successful poll)
+Action: Monitoring data may be stale. Refresh GOFO_AUTH / check the service.
+TMS data as of 2026-10-15 02:35 ET
+
+[BWI] resolved: Monitor feed — cleared
+Reason: TMS feed recovered
+TMS data as of 2026-10-15 05:11 ET
+
+[05:11] poll ok: 3699 BWI segments, 31 changed
+[05:22] poll ok: 3699 BWI segments, 18 changed
+[05:32] poll ok: 3699 BWI segments, 0 changed
+[05:43] poll ok: 3699 BWI segments, 20 changed
+[05:54] poll ok: 3699 BWI segments, 5 changed
+[06:04] poll ok: 3699 BWI segments, 13 changed
+[06:15] poll ok: 3699 BWI segments, 15 changed
+[06:31] poll ok: 3699 BWI segments, 9 changed
+[06:41] poll ok: 3699 BWI segments, 11 changed
+[06:52] poll ok: 3699 BWI segments, 16 changed
+[07:03] poll ok: 3699 BWI segments, 6 changed
+[07:13] poll ok: 3699 BWI segments, 11 changed
+[07:39] poll ok: 3699 BWI segments, 19 changed
+[07:49] poll ok: 3699 BWI segments, 11 changed
+[08:00] poll ok: 3699 BWI segments, 4 changed
+[08:11] poll ok: 3699 BWI segments, 16 changed
+🔔 BWI Shift Reminder
+A new working day is approaching. Please confirm that warehouse operations have started.
+新的工作日即将开始，请确认仓库是否已开始作业，并在监控台点击 [START SHIFT / RESUME ALERTS]。
+提醒时间：10-15 08:15 ET
+
+[08:22] poll ok: 3699 BWI segments, 15 changed
+[08:34] poll ok: 3699 BWI segments, 7 changed
+[09:00] poll failed: request failed after retries: ConnectionError: HTTPSConnectionPool(host='dms.gofoexpress.com', port=443): Max retries exceeded with url: /prod-api/dbu_tms/api/task/transportTaskArrival/pageList (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x1146de7b0>: Failed to resolve 'dms.gofoexpress.com' ([Errno 8] nodename nor servname provided, or not known)"))
+[BWI] Monitor feed — needs verification
+Reason: No TMS data since 2026-10-15 08:34 ET (request failed after retries: ConnectionError: HTTPSConnectionPool(host='dms.gofoexpress.com', port=443): Max retries exceeded with url: /prod-api/dbu_tms/api/task/transportTaskArrival/pageList (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x1146de7b0>: Failed to resolve 'dms.gofoexpress.com' ([Errno 8] nodename nor servname provided, or not known)")))
+Action: Monitoring data may be stale. Refresh GOFO_AUTH / check the service.
+TMS data as of 2026-10-15 08:34 ET
+
+[BWI] resolved: Monitor feed — cleared
+Reason: TMS feed recovered
+TMS data as of 2026-10-15 09:10 ET
+
+[09:10] poll ok: 3699 BWI segments, 22 changed
+[09:21] poll ok: 3701 BWI segments, 18 changed
+[09:32] poll ok: 3701 BWI segments, 25 changed
+[09:42] poll ok: 3701 BWI segments, 8 changed
+[09:53] poll ok: 3701 BWI segments, 13 changed
+[10:03] poll ok: 3701 BWI segments, 9 changed
+[10:14] poll ok: 3701 BWI segments, 20 changed
+[10:25] poll ok: 3702 BWI segments, 17 changed
+[10:35] poll ok: 3702 BWI segments, 7 changed
+[10:46] poll ok: 3702 BWI segments, 13 changed
+[BWI] Monitor feed — needs verification
+Reason: No TMS data since 2026-10-15 10:46 ET (no successful poll)
+Action: Monitoring data may be stale. Refresh GOFO_AUTH / check the service.
+TMS data as of 2026-10-15 10:46 ET
+
+[BWI] resolved: Monitor feed — cleared
+Reason: TMS feed recovered
+TMS data as of 2026-10-15 12:35 ET
+
+[12:35] poll ok: 3702 BWI segments, 21 changed
+[12:45] poll ok: 3702 BWI segments, 13 changed
+[12:56] poll ok: 3702 BWI segments, 5 changed
+[13:07] poll ok: 3702 BWI segments, 9 changed
+[13:17] poll ok: 3702 BWI segments, 7 changed
+[13:28] poll ok: 3702 BWI segments, 10 changed
+[13:38] poll ok: 3703 BWI segments, 10 changed
+[13:49] poll ok: 3703 BWI segments, 12 changed
+[14:00] poll ok: 3705 BWI segments, 10 changed
+[14:10] poll ok: 3710 BWI segments, 12 changed
+[14:21] poll ok: 3713 BWI segments, 13 changed
+[14:31] poll ok: 3713 BWI segments, 8 changed
+[14:42] poll ok: 3713 BWI segments, 13 changed
+[14:53] poll ok: 3713 BWI segments, 9 changed
+[15:04] poll ok: 3713 BWI segments, 6 changed
+[15:14] poll ok: 3713 BWI segments, 6 changed
+[15:25] poll ok: 3713 BWI segments, 6 changed
+[15:36] poll ok: 3713 BWI segments, 11 changed
+[15:46] poll ok: 3713 BWI segments, 7 changed
+[15:57] poll ok: 3713 BWI segments, 5 changed
+[16:08] poll ok: 3713 BWI segments, 6 changed
+[16:18] poll ok: 3713 BWI segments, 5 changed
+[16:29] poll ok: 3713 BWI segments, 10 changed
+[16:39] poll ok: 3713 BWI segments, 6 changed
+[16:50] poll ok: 3713 BWI segments, 4 changed
+[17:00] poll ok: 3713 BWI segments, 10 changed
+[17:11] poll ok: 3713 BWI segments, 1 changed
+[17:21] poll ok: 3713 BWI segments, 11 changed
+[17:32] poll ok: 3715 BWI segments, 12 changed
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-15 17:30 (manual); TMS check-in completed
+Task MT2026101300727 | CNO.H → BWI.H | plate 0062 | trailer 15404
+Deadline 2026-10-15 17:30 ET | now 17:32 ET
+Reason: Vehicle arrived 2026-10-15 17:30 (manual); TMS check-in completed
+TMS data as of 2026-10-15 17:32 ET
+
+[17:42] poll ok: 3715 BWI segments, 9 changed
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-15 17:28 (GPS); TMS check-in not yet completed
+Task MT2026101300381 | CNO.H → BWI.H | plate AH52530 | trailer 917327
+Deadline 2026-10-15 17:28 ET | now 17:43 ET
+Reason: Vehicle arrived 2026-10-15 17:28 (GPS); TMS check-in not yet completed
+TMS data as of 2026-10-15 17:42 ET
+
+[17:53] poll ok: 3716 BWI segments, 14 changed
+[BWI] Unload 60 min (single-stop: complete unloading) — 30 min left, not done
+Task MT2026101300381 | CNO.H → BWI.H | plate AH52530 | trailer 917327
+Deadline 2026-10-15 18:28 ET | now 17:58 ET
+Reason: Complete unloading not shown in TMS records (unloaded count missing; meaning unverified); reminder, 30 min left
+Action: Finish unloading the whole truck and scan all bags in TMS
+TMS data as of 2026-10-15 17:53 ET
+
+[18:04] poll ok: 3716 BWI segments, 8 changed
+[18:15] poll ok: 3716 BWI segments, 5 changed
+[BWI] Unload 60 min (single-stop: complete unloading) — HIGH PRIORITY — only 5 min left, not done
+Task MT2026101300381 | CNO.H → BWI.H | plate AH52530 | trailer 917327
+Deadline 2026-10-15 18:28 ET | now 18:24 ET
+Reason: Complete unloading not shown in TMS records; strong reminder, 5 min left
+Action: Finish unloading the whole truck and scan all bags in TMS
+TMS data as of 2026-10-15 18:15 ET
+
+[18:25] poll ok: 3716 BWI segments, 16 changed
+[BWI] Unload 60 min (single-stop: complete unloading) — OVERDUE by 1 min based on TMS records
+Task MT2026101300381 | CNO.H → BWI.H | plate AH52530 | trailer 917327
+Deadline 2026-10-15 18:28 ET | now 18:29 ET
+Reason: Complete unloading not shown in TMS records; deadline passed
+Action: Finish unloading the whole truck and scan all bags in TMS
+TMS data as of 2026-10-15 18:25 ET
+
+[18:36] poll ok: 3716 BWI segments, 10 changed
+[BWI] Unload 60 min (single-stop: complete unloading) — overdue based on TMS records (still incomplete 1+ min after deadline)
+Task MT2026101300381 | CNO.H → BWI.H | plate AH52530 | trailer 917327
+Deadline 2026-10-15 18:28 ET | now 18:37 ET
+Reason: Overdue based on TMS records: still incomplete at 2026-10-15 18:29, deadline 2026-10-15 18:28; first observed complete 2026-10-15 18:36
+TMS data as of 2026-10-15 18:36 ET
+
+[18:47] poll ok: 3716 BWI segments, 6 changed
+[18:57] poll ok: 3716 BWI segments, 8 changed
+[19:08] poll ok: 3716 BWI segments, 10 changed
+[19:18] poll ok: 3716 BWI segments, 7 changed
+[19:29] poll ok: 3716 BWI segments, 4 changed
+[19:40] poll ok: 3716 BWI segments, 12 changed
+[19:51] poll ok: 3716 BWI segments, 6 changed
+[20:01] poll ok: 3716 BWI segments, 9 changed
+Dashboard: http://127.0.0.1:8766
+[20:05] poll ok: 3716 BWI segments, 0 changed
+[20:15] poll ok: 3716 BWI segments, 12 changed
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-15 20:04 (GPS); TMS check-in completed
+Task MT2026101600297 | EWR.H → BWI.H | plate 502597 | trailer -
+Deadline 2026-10-15 20:04 ET | now 20:16 ET
+Reason: Vehicle arrived 2026-10-15 20:04 (GPS); TMS check-in completed
+TMS data as of 2026-10-15 20:15 ET
+
+[20:26] poll ok: 3716 BWI segments, 6 changed
+[BWI] Departure completed — RIC departed 2026-10-15 20:19 (manual)
+Task MT2026101500669 | BWI.H → RIC01 | plate 01D | trailer -
+Deadline 2026-10-15 20:19 ET | now 20:26 ET
+Reason: RIC departed 2026-10-15 20:19 (manual)
+TMS data as of 2026-10-15 20:26 ET
+
+[20:36] poll ok: 3716 BWI segments, 6 changed
+[20:47] poll ok: 3716 BWI segments, 10 changed
+[20:58] poll ok: 3716 BWI segments, 7 changed
+[21:09] poll ok: 3716 BWI segments, 10 changed
+[21:19] poll ok: 3718 BWI segments, 14 changed
+[21:30] poll ok: 3718 BWI segments, 7 changed
+[21:41] poll ok: 3720 BWI segments, 13 changed
+[BWI] Departure completed — IAD departed 2026-10-15 21:36 (manual)
+Task MT2026101500648 | BWI.H → IAD01 | plate 346G | trailer -
+Deadline 2026-10-15 21:36 ET | now 21:42 ET
+Reason: IAD departed 2026-10-15 21:36 (manual)
+TMS data as of 2026-10-15 21:41 ET
+
+[BWI] Departure completed — RIC departed 2026-10-15 21:37 (manual)
+Task MT2026101500668 | BWI.H → RIC01 | plate 001 | trailer -
+Deadline 2026-10-15 21:37 ET | now 21:42 ET
+Reason: RIC departed 2026-10-15 21:37 (manual)
+TMS data as of 2026-10-15 21:41 ET
+
+[21:52] poll ok: 3720 BWI segments, 14 changed
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-15 21:50 (manual); TMS check-in completed
+Task MT2026101600512 | EWR.H → BWI.H | plate 678 | trailer -
+Deadline 2026-10-15 21:50 ET | now 21:52 ET
+Reason: Vehicle arrived 2026-10-15 21:50 (manual); TMS check-in completed
+TMS data as of 2026-10-15 21:52 ET
+
+Dashboard: http://127.0.0.1:8766
+[22:02] poll ok: 3720 BWI segments, 1 changed
+[BWI] Departure completed — ORF departed 2026-10-15 22:02 (manual)
+Task MT2026101600312 | BWI.H → ORF01 | plate 87635 | trailer 9660
+Deadline 2026-10-15 22:02 ET | now 22:02 ET
+Reason: ORF departed 2026-10-15 22:02 (manual)
+TMS data as of 2026-10-15 22:02 ET
+
+[22:12] poll ok: 3720 BWI segments, 12 changed
+[22:23] poll ok: 3720 BWI segments, 7 changed
+[BWI] Branch departure — 30 min left, not done
+Task MT2026101500775 | BWI.H → ORF01 | plate 6FB5229 | trailer -
+Deadline 2026-10-15 23:00 ET | now 22:30 ET
+Reason: No manual departure in TMS; reminder, 30 min left
+Action: Check loading and complete the TMS departure
+TMS data as of 2026-10-15 22:23 ET
+
+[22:33] poll ok: 3721 BWI segments, 13 changed
+[22:44] poll ok: 3722 BWI segments, 16 changed
+[BWI] Departure completed — IAD departed 2026-10-15 22:38 (manual)
+Task MT2026101500749 | BWI.H → IAD01 | plate 718 | trailer -
+Deadline 2026-10-15 22:38 ET | now 22:45 ET
+Reason: IAD departed 2026-10-15 22:38 (manual)
+TMS data as of 2026-10-15 22:44 ET
+
+[BWI] resolved: Branch departure — cleared
+Task MT2026101500775 | BWI.H → ORF01 | plate 6FB5229 | trailer -
+Deadline 2026-10-15 23:00 ET | now 22:45 ET
+Reason: Manual departure 2026-10-15 22:42 by the ORF deadline 2026-10-15 23:00
+TMS data as of 2026-10-15 22:44 ET
+
+[BWI] Departure completed — ORF departed 2026-10-15 22:42 (manual)
+Task MT2026101500775 | BWI.H → ORF01 | plate 6FB5229 | trailer -
+Deadline 2026-10-15 22:42 ET | now 22:45 ET
+Reason: ORF departed 2026-10-15 22:42 (manual)
+TMS data as of 2026-10-15 22:44 ET
+
+[BWI] Branch departure — 30 min left, not done
+Task MT2026101500802 | BWI.H → ORF01 | plate 21033DRR | trailer -
+Deadline 2026-10-15 23:00 ET | now 22:45 ET
+Reason: No manual departure in TMS; reminder, 30 min left
+Action: Check loading and complete the TMS departure
+TMS data as of 2026-10-15 22:44 ET
+
+[22:55] poll ok: 3722 BWI segments, 10 changed
+[BWI] resolved: Branch departure — cleared
+Task MT2026101500802 | BWI.H → ORF01 | plate 21033DRR | trailer -
+Deadline 2026-10-15 23:00 ET | now 22:55 ET
+Reason: Manual departure 2026-10-15 22:49 by the ORF deadline 2026-10-15 23:00
+TMS data as of 2026-10-15 22:55 ET
+
+[BWI] Departure completed — ORF departed 2026-10-15 22:49 (manual)
+Task MT2026101500802 | BWI.H → ORF01 | plate 21033DRR | trailer -
+Deadline 2026-10-15 22:49 ET | now 22:55 ET
+Reason: ORF departed 2026-10-15 22:49 (manual)
+TMS data as of 2026-10-15 22:55 ET
+
+[23:05] poll ok: 3722 BWI segments, 11 changed
+[23:16] poll ok: 3722 BWI segments, 13 changed
+[23:26] poll ok: 3722 BWI segments, 11 changed
+[BWI] Departure completed — RIC departed 2026-10-15 23:17 (manual)
+Task MT2026101500667 | BWI.H → RIC01 | plate 6FB5229 | trailer -
+Deadline 2026-10-15 23:17 ET | now 23:27 ET
+Reason: RIC departed 2026-10-15 23:17 (manual)
+TMS data as of 2026-10-15 23:26 ET
+
+[BWI] Departure completed — DCA departed 2026-10-15 23:19 (manual)
+Task MT2026101500799 | BWI.H → DCA01 | plate 6FB5229 | trailer -
+Deadline 2026-10-15 23:19 ET | now 23:27 ET
+Reason: DCA departed 2026-10-15 23:19 (manual)
+TMS data as of 2026-10-15 23:26 ET
+
+[23:37] poll ok: 3723 BWI segments, 10 changed
+[BWI] Departure completed — RIC departed 2026-10-15 23:32 (manual)
+Task MT2026101500797 | BWI.H → RIC01 | plate 21033DRR | trailer -
+Deadline 2026-10-15 23:32 ET | now 23:37 ET
+Reason: RIC departed 2026-10-15 23:32 (manual)
+TMS data as of 2026-10-15 23:37 ET
+
+[23:47] poll ok: 3723 BWI segments, 14 changed
+[BWI] Departure completed — DCA departed 2026-10-15 23:43 (manual)
+Task MT2026101600301 | BWI.H → DCA01 | plate 2599 | trailer -
+Deadline 2026-10-15 23:43 ET | now 23:48 ET
+Reason: DCA departed 2026-10-15 23:43 (manual)
+TMS data as of 2026-10-15 23:47 ET
+
+[23:58] poll ok: 3723 BWI segments, 8 changed
+[00:08] poll ok: 3723 BWI segments, 10 changed
+[BWI] Departure completed — IAD departed 2026-10-16 00:01 (manual)
+Task MT2026101500695 | BWI.H → IAD01 | plate 1916 | trailer -
+Deadline 2026-10-16 00:01 ET | now 00:09 ET
+Reason: IAD departed 2026-10-16 00:01 (manual)
+TMS data as of 2026-10-16 00:08 ET
+
+[00:19] poll ok: 3723 BWI segments, 13 changed
+[00:30] poll ok: 3723 BWI segments, 10 changed
+[00:41] poll ok: 3727 BWI segments, 15 changed
+[00:52] poll ok: 3727 BWI segments, 15 changed
+[01:02] poll ok: 3727 BWI segments, 9 changed
+[01:13] poll ok: 3727 BWI segments, 11 changed
+[01:23] poll ok: 3727 BWI segments, 16 changed
+[01:34] poll ok: 3727 BWI segments, 3 changed
+[01:44] poll ok: 3727 BWI segments, 14 changed
+[01:56] poll ok: 3727 BWI segments, 16 changed
+[02:06] poll ok: 3727 BWI segments, 5 changed
+[02:17] poll ok: 3727 BWI segments, 15 changed
+[02:28] poll ok: 3727 BWI segments, 3 changed
+[02:38] poll ok: 3727 BWI segments, 19 changed
+[02:49] poll ok: 3727 BWI segments, 17 changed
+[02:59] poll ok: 3731 BWI segments, 9 changed
+[03:10] poll ok: 3731 BWI segments, 15 changed
+[03:20] poll ok: 3731 BWI segments, 6 changed
+[03:31] poll ok: 3731 BWI segments, 16 changed
+[03:42] poll ok: 3731 BWI segments, 15 changed
+[03:52] poll ok: 3731 BWI segments, 4 changed
+[04:03] poll ok: 3731 BWI segments, 15 changed
+[04:13] poll ok: 3731 BWI segments, 2 changed
+[04:24] poll ok: 3731 BWI segments, 16 changed
+[04:34] poll ok: 3735 BWI segments, 4 changed
+[04:45] poll ok: 3735 BWI segments, 18 changed
+[04:56] poll ok: 3735 BWI segments, 16 changed
+[05:06] poll ok: 3735 BWI segments, 2 changed
+[05:17] poll ok: 3735 BWI segments, 17 changed
+[05:27] poll ok: 3735 BWI segments, 5 changed
+[05:38] poll ok: 3735 BWI segments, 12 changed
+[05:48] poll ok: 3735 BWI segments, 15 changed
+[05:59] poll ok: 3735 BWI segments, 6 changed
+[06:10] poll ok: 3735 BWI segments, 16 changed
+[06:21] poll ok: 3735 BWI segments, 4 changed
+[06:31] poll ok: 3735 BWI segments, 18 changed
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-16 06:14 (GPS); TMS check-in not yet completed
+Task MT2026101400701 | CNO.H → BWI.H | plate PXD2809 | trailer 5624154
+Deadline 2026-10-16 06:14 ET | now 06:32 ET
+Reason: Vehicle arrived 2026-10-16 06:14 (GPS); TMS check-in not yet completed
+TMS data as of 2026-10-16 06:31 ET
+
+[06:42] poll ok: 3735 BWI segments, 16 changed
+[06:52] poll ok: 3735 BWI segments, 1 changed
+[07:03] poll ok: 3735 BWI segments, 15 changed
+[07:14] poll ok: 3735 BWI segments, 16 changed
+[07:24] poll ok: 3735 BWI segments, 1 changed
+[07:35] poll ok: 3736 BWI segments, 16 changed
+[07:45] poll ok: 3736 BWI segments, 10 changed
+[07:56] poll ok: 3736 BWI segments, 8 changed
+[08:07] poll ok: 3736 BWI segments, 18 changed
+[08:18] poll ok: 3736 BWI segments, 10 changed
+[08:28] poll ok: 3736 BWI segments, 9 changed
+[08:39] poll ok: 3736 BWI segments, 10 changed
+[08:49] poll ok: 3736 BWI segments, 16 changed
+[09:00] poll ok: 3736 BWI segments, 10 changed
+[09:10] poll ok: 3736 BWI segments, 10 changed
+[09:21] poll ok: 3737 BWI segments, 24 changed
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-16 09:21 (manual); TMS check-in completed
+Task MT2026101600298 | EWR.H → BWI.H | plate L2515 | trailer -
+Deadline 2026-10-16 09:21 ET | now 09:22 ET
+Reason: Vehicle arrived 2026-10-16 09:21 (manual); TMS check-in completed
+TMS data as of 2026-10-16 09:21 ET
+
+[09:32] poll ok: 3737 BWI segments, 6 changed
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-16 09:28 (manual); TMS check-in completed
+Task MT2026101500707 | ORF01 → BWI.H | plate 21033DRR | trailer -
+Deadline 2026-10-16 09:28 ET | now 09:32 ET
+Reason: Vehicle arrived 2026-10-16 09:28 (manual); TMS check-in completed
+TMS data as of 2026-10-16 09:32 ET
+
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-16 09:18 (GPS); TMS check-in not yet completed
+Task MT2026101600382 | EWR.H → BWI.H | plate 571 | trailer -
+Deadline 2026-10-16 09:18 ET | now 09:32 ET
+Reason: Vehicle arrived 2026-10-16 09:18 (GPS); TMS check-in not yet completed
+TMS data as of 2026-10-16 09:32 ET
+
+[09:42] poll ok: 3737 BWI segments, 17 changed
+[BWI] Operation: arrival — not recorded yet (pending risk)
+Task MT2026101600382 | EWR.H → BWI.H | plate 571 | trailer -
+Deadline 2026-10-16 09:51 ET | now 09:51 ET
+Reason: GPS arrival 2026-10-16 09:18, no manual check-in 30 min after 2026-10-16 09:21
+Action: Record the arrival check-in in TMS
+TMS data as of 2026-10-16 09:42 ET
+
+[BWI] Unload 60 min (multi-stop: first scan) — 30 min left, not done
+Task MT2026101600382 | EWR.H → BWI.H | plate 571 | trailer -
+Deadline 2026-10-16 10:21 ET | now 09:51 ET
+Reason: First unloading scan not shown in TMS records (unloaded count missing; meaning unverified); reminder, 30 min left
+Action: Start unloading and scan the first bag label in TMS
+TMS data as of 2026-10-16 09:42 ET
+
+[09:53] poll ok: 3737 BWI segments, 13 changed
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-16 09:36 (GPS); TMS check-in not yet completed
+Task MT2026101600581 | EWR.H → BWI.H | plate 628 | trailer -
+Deadline 2026-10-16 09:36 ET | now 09:54 ET
+Reason: Vehicle arrived 2026-10-16 09:36 (GPS); TMS check-in not yet completed
+TMS data as of 2026-10-16 09:53 ET
+
+[10:04] poll ok: 3737 BWI segments, 11 changed
+[BWI] Operation: arrival — not recorded yet (pending risk)
+Task MT2026101600581 | EWR.H → BWI.H | plate 628 | trailer -
+Deadline 2026-10-16 10:06 ET | now 10:06 ET
+Reason: GPS arrival 2026-10-16 09:36, no manual check-in 30 min after 2026-10-16 09:36
+Action: Record the arrival check-in in TMS
+TMS data as of 2026-10-16 10:04 ET
+
+[BWI] Unload 60 min (multi-stop: first scan) — 30 min left, not done
+Task MT2026101600581 | EWR.H → BWI.H | plate 628 | trailer -
+Deadline 2026-10-16 10:36 ET | now 10:06 ET
+Reason: First unloading scan not shown in TMS records (unloaded count missing; meaning unverified); reminder, 30 min left
+Action: Start unloading and scan the first bag label in TMS
+TMS data as of 2026-10-16 10:04 ET
+
+[10:14] poll ok: 3737 BWI segments, 15 changed
+[BWI] resolved: Operation: arrival — cleared
+Task MT2026101600382 | EWR.H → BWI.H | plate 571 | trailer -
+Reason: Manual check-in recorded
+TMS data as of 2026-10-16 10:14 ET
+
+[BWI] resolved: Unload 60 min (multi-stop: first scan) — completed on time
+Task MT2026101600382 | EWR.H → BWI.H | plate 571 | trailer -
+Deadline 2026-10-16 10:21 ET | now 10:15 ET
+Reason: First unloading scan observed by 2026-10-16 10:14: on time based on available records
+TMS data as of 2026-10-16 10:14 ET
+
+[10:25] poll ok: 3737 BWI segments, 9 changed
+[BWI] resolved: Operation: arrival — cleared
+Task MT2026101600581 | EWR.H → BWI.H | plate 628 | trailer -
+Reason: Manual check-in recorded
+TMS data as of 2026-10-16 10:25 ET
+
+[BWI] resolved: Unload 60 min (multi-stop: first scan) — completed on time
+Task MT2026101600581 | EWR.H → BWI.H | plate 628 | trailer -
+Deadline 2026-10-16 10:36 ET | now 10:25 ET
+Reason: First unloading scan observed by 2026-10-16 10:25: on time based on available records
+TMS data as of 2026-10-16 10:25 ET
+
+[10:35] poll ok: 3737 BWI segments, 15 changed
+[10:46] poll ok: 3737 BWI segments, 11 changed
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-16 10:37 (GPS); TMS check-in completed
+Task MT2026101400381 | CNO.H → BWI.H | plate DD8110A | trailer VS026167
+Deadline 2026-10-16 10:37 ET | now 10:46 ET
+Reason: Vehicle arrived 2026-10-16 10:37 (GPS); TMS check-in completed
+TMS data as of 2026-10-16 10:46 ET
+
+[10:57] poll ok: 3737 BWI segments, 10 changed
+[11:07] poll ok: 3737 BWI segments, 8 changed
+[11:18] poll ok: 3737 BWI segments, 11 changed
+[11:29] poll ok: 3738 BWI segments, 7 changed
+[11:39] poll ok: 3738 BWI segments, 5 changed
+[11:50] poll ok: 3738 BWI segments, 11 changed
+[12:00] poll ok: 3738 BWI segments, 11 changed
+[12:11] poll ok: 3738 BWI segments, 6 changed
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-16 12:10 (manual); TMS check-in completed
+Task MT2026101600723 | EWR.H → BWI.H | plate BWI01 | trailer -
+Deadline 2026-10-16 12:10 ET | now 12:11 ET
+Reason: Vehicle arrived 2026-10-16 12:10 (manual); TMS check-in completed
+TMS data as of 2026-10-16 12:11 ET
+
+[12:21] poll ok: 3738 BWI segments, 8 changed
+[12:32] poll ok: 3738 BWI segments, 16 changed
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-16 12:22 (GPS); TMS check-in not yet completed
+Task MT2026101600583 | EWR.H → BWI.H | plate 557223 | trailer -
+Deadline 2026-10-16 12:22 ET | now 12:32 ET
+Reason: Vehicle arrived 2026-10-16 12:22 (GPS); TMS check-in not yet completed
+TMS data as of 2026-10-16 12:32 ET
+
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-16 12:17 (GPS); TMS check-in completed
+Task MT2026101600584 | EWR.H → BWI.H | plate 577 | trailer -
+Deadline 2026-10-16 12:17 ET | now 12:32 ET
+Reason: Vehicle arrived 2026-10-16 12:17 (GPS); TMS check-in completed
+TMS data as of 2026-10-16 12:32 ET
+
+[12:42] poll ok: 3738 BWI segments, 9 changed
+[12:53] poll ok: 3738 BWI segments, 6 changed
+[13:03] poll ok: 3738 BWI segments, 12 changed
+[13:14] poll ok: 3738 BWI segments, 7 changed
+[13:24] poll ok: 3744 BWI segments, 16 changed
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-16 13:17 (manual); TMS check-in completed
+Task MT2026101600582 | EWR.H → BWI.H | plate 2204 | trailer -
+Deadline 2026-10-16 13:17 ET | now 13:25 ET
+Reason: Vehicle arrived 2026-10-16 13:17 (manual); TMS check-in completed
+TMS data as of 2026-10-16 13:24 ET
+
+[13:35] poll ok: 3744 BWI segments, 7 changed
+[13:46] poll ok: 3744 BWI segments, 6 changed
+[13:56] poll ok: 3746 BWI segments, 14 changed
+[14:07] poll ok: 3746 BWI segments, 8 changed
+[14:17] poll ok: 3746 BWI segments, 6 changed
+[14:28] poll ok: 3747 BWI segments, 7 changed
+[14:38] poll ok: 3747 BWI segments, 6 changed
+[14:49] poll ok: 3751 BWI segments, 11 changed
+[14:59] poll ok: 3754 BWI segments, 11 changed
+[15:10] poll ok: 3754 BWI segments, 10 changed
+[15:21] poll ok: 3754 BWI segments, 6 changed
+[15:31] poll ok: 3754 BWI segments, 8 changed
+[15:42] poll ok: 3754 BWI segments, 6 changed
+[15:52] poll ok: 3754 BWI segments, 6 changed
+[16:03] poll ok: 3754 BWI segments, 7 changed
+[16:14] poll ok: 3754 BWI segments, 7 changed
+[16:24] poll ok: 3754 BWI segments, 13 changed
+[16:35] poll ok: 3754 BWI segments, 7 changed
+[16:45] poll ok: 3754 BWI segments, 7 changed
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-16 16:39 (GPS); TMS check-in not yet completed
+Task MT2026101600727 | EWR.H → BWI.H | plate 005 | trailer -
+Deadline 2026-10-16 16:39 ET | now 16:46 ET
+Reason: Vehicle arrived 2026-10-16 16:39 (GPS); TMS check-in not yet completed
+TMS data as of 2026-10-16 16:45 ET
+
+[16:56] poll ok: 3754 BWI segments, 7 changed
+[17:06] poll ok: 3754 BWI segments, 7 changed
+[BWI] Unload 60 min (single-stop: complete unloading) — 30 min left, not done
+Task MT2026101600727 | EWR.H → BWI.H | plate 005 | trailer -
+Deadline 2026-10-16 17:39 ET | now 17:09 ET
+Reason: Complete unloading not shown in TMS records; reminder, 30 min left
+Action: Finish unloading the whole truck and scan all bags in TMS
+TMS data as of 2026-10-16 17:06 ET
+
+[17:17] poll ok: 3754 BWI segments, 10 changed
+[BWI] Data check: MARKED_COMPLETE_SHORT — needs verification
+Task MT2026101600727 | EWR.H → BWI.H | plate 005 | trailer -
+Reason: TMS unload marked complete, but fewer bags unloaded than due at BWI (27 of 28 bags)
+Action: Verify the record in TMS
+TMS data as of 2026-10-16 17:17 ET
+
+[17:28] poll ok: 3754 BWI segments, 7 changed
+[BWI] Unload 60 min (single-stop: complete unloading) — HIGH PRIORITY — only 5 min left, not done
+Task MT2026101600727 | EWR.H → BWI.H | plate 005 | trailer -
+Deadline 2026-10-16 17:39 ET | now 17:34 ET
+Reason: Complete unloading not shown in TMS records; strong reminder, 5 min left
+Action: Finish unloading the whole truck and scan all bags in TMS
+TMS data as of 2026-10-16 17:28 ET
+
+[17:39] poll ok: 3754 BWI segments, 10 changed
+[BWI] Unload 60 min (single-stop: complete unloading) — OVERDUE by 1 min based on TMS records
+Task MT2026101600727 | EWR.H → BWI.H | plate 005 | trailer -
+Deadline 2026-10-16 17:39 ET | now 17:40 ET
+Reason: Complete unloading not shown in TMS records; deadline passed
+Action: Finish unloading the whole truck and scan all bags in TMS
+TMS data as of 2026-10-16 17:39 ET
+
+Dashboard: http://127.0.0.1:8766
+[17:45] poll ok: 3754 BWI segments, 1 changed
+[17:56] poll ok: 3754 BWI segments, 12 changed
+[BWI] Departure completed — RIC departed 2026-10-16 17:52 (manual)
+Task MT2026101600753 | BWI.H → RIC01 | plate 21033DRR | trailer -
+Deadline 2026-10-16 17:52 ET | now 17:56 ET
+Reason: RIC departed 2026-10-16 17:52 (manual)
+TMS data as of 2026-10-16 17:56 ET
+
+Dashboard: http://127.0.0.1:8766
+[17:58] poll ok: 3754 BWI segments, 0 changed
+Dashboard: http://127.0.0.1:8766
+[18:07] poll ok: 3754 BWI segments, 6 changed
+[18:17] poll ok: 3754 BWI segments, 5 changed
+[18:28] poll ok: 3754 BWI segments, 11 changed
+[18:39] poll ok: 3754 BWI segments, 4 changed
+[18:50] poll ok: 3754 BWI segments, 11 changed
+[BWI] Departure completed — ORF manual departure 2026-10-16 18:45:07 ET (early 28h 14m 53s)
+Task MT2026101700315 | BWI.H → ORF01 | plate 888 | trailer 08
+Deadline 2026-10-17 23:00 ET | now 18:50 ET
+Reason: ORF manual departure 2026-10-16 18:45:07 ET (early 28h 14m 53s)
+TMS data as of 2026-10-16 18:50 ET
+
+[19:00] poll ok: 3754 BWI segments, 10 changed
+[19:11] poll ok: 3754 BWI segments, 3 changed
+[19:21] poll ok: 3754 BWI segments, 11 changed
+[19:32] poll ok: 3754 BWI segments, 0 changed
+[19:42] poll ok: 3754 BWI segments, 11 changed
+[19:53] poll ok: 3754 BWI segments, 1 changed
+[20:04] poll ok: 3754 BWI segments, 11 changed
+[BWI] Departure completed — IAD manual departure 2026-10-16 20:02:39 ET (early 6h 27m 21s)
+Task MT2026101600648 | BWI.H → IAD01 | plate 346G | trailer -
+Deadline 2026-10-17 02:30 ET | now 20:04 ET
+Reason: IAD manual departure 2026-10-16 20:02:39 ET (early 6h 27m 21s)
+TMS data as of 2026-10-16 20:04 ET
+
+[20:14] poll ok: 3754 BWI segments, 12 changed
+[20:25] poll ok: 3754 BWI segments, 5 changed
+[BWI] Departure completed — DCA manual departure 2026-10-16 20:23:31 ET (early 5h 36m 29s)
+Task MT2026101700305 | BWI.H → DCA01 | plate 2599 | trailer -
+Deadline 2026-10-17 02:00 ET | now 20:26 ET
+Reason: DCA manual departure 2026-10-16 20:23:31 ET (early 5h 36m 29s)
+TMS data as of 2026-10-16 20:25 ET
+
+[BWI] Departure completed — ORF manual departure 2026-10-16 20:14:40 ET (early 26h 45m 20s)
+Task MT2026101700316 | BWI.H → ORF01 | plate 1126 | trailer 8933
+Deadline 2026-10-17 23:00 ET | now 20:26 ET
+Reason: ORF manual departure 2026-10-16 20:14:40 ET (early 26h 45m 20s)
+TMS data as of 2026-10-16 20:25 ET
+
+[20:36] poll ok: 3754 BWI segments, 12 changed
+[20:46] poll ok: 3754 BWI segments, 13 changed
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-16 20:33 (GPS); TMS check-in completed
+Task MT2026101700301 | EWR.H → BWI.H | plate 502597 | trailer -
+Deadline 2026-10-16 20:33 ET | now 20:47 ET
+Reason: Vehicle arrived 2026-10-16 20:33 (GPS); TMS check-in completed
+TMS data as of 2026-10-16 20:46 ET
+
+[20:57] poll ok: 3754 BWI segments, 4 changed
+[BWI] Departure completed — RIC manual departure 2026-10-16 20:49:22 ET (early 3h 10m 38s)
+Task MT2026101600671 | BWI.H → RIC01 | plate 01D | trailer -
+Deadline 2026-10-17 00:00 ET | now 20:57 ET
+Reason: RIC manual departure 2026-10-16 20:49:22 ET (early 3h 10m 38s)
+TMS data as of 2026-10-16 20:57 ET
+
+[21:07] poll ok: 3754 BWI segments, 11 changed
+[21:18] poll ok: 3754 BWI segments, 4 changed
+[21:29] poll ok: 3754 BWI segments, 16 changed
+[BWI] Departure completed — ORF manual departure 2026-10-16 21:22:28 ET (early 25h 37m 32s)
+Task MT2026101700317 | BWI.H → ORF01 | plate 6FB | trailer -
+Deadline 2026-10-17 23:00 ET | now 21:30 ET
+Reason: ORF manual departure 2026-10-16 21:22:28 ET (early 25h 37m 32s)
+TMS data as of 2026-10-16 21:29 ET
+
+[BWI] Departure completed — RIC manual departure 2026-10-16 21:24:02 ET (early 2h 35m 58s)
+Task MT2026101600670 | BWI.H → RIC01 | plate 001 | trailer -
+Deadline 2026-10-17 00:00 ET | now 21:30 ET
+Reason: RIC manual departure 2026-10-16 21:24:02 ET (early 2h 35m 58s)
+TMS data as of 2026-10-16 21:29 ET
+
+[21:40] poll ok: 3754 BWI segments, 7 changed
+[BWI] Departure completed — RIC manual departure 2026-10-16 21:33:00 ET (early 2h 27m 0s)
+Task MT2026101600669 | BWI.H → RIC01 | plate 1101L | trailer -
+Deadline 2026-10-17 00:00 ET | now 21:40 ET
+Reason: RIC manual departure 2026-10-16 21:33:00 ET (early 2h 27m 0s)
+TMS data as of 2026-10-16 21:40 ET
+
+[21:50] poll ok: 3754 BWI segments, 10 changed
+[22:01] poll ok: 3756 BWI segments, 17 changed
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-16 21:58 (manual); TMS check-in completed
+Task MT2026101700526 | EWR.H → BWI.H | plate 678 | trailer -
+Deadline 2026-10-16 21:58 ET | now 22:01 ET
+Reason: Vehicle arrived 2026-10-16 21:58 (manual); TMS check-in completed
+TMS data as of 2026-10-16 22:01 ET
+
+[22:11] poll ok: 3756 BWI segments, 3 changed
+[22:22] poll ok: 3756 BWI segments, 15 changed
+[BWI] Departure completed — IAD manual departure 2026-10-16 22:20:04 ET (early 4h 9m 56s)
+Task MT2026101600752 | BWI.H → IAD01 | plate 718 | trailer -
+Deadline 2026-10-17 02:30 ET | now 22:23 ET
+Reason: IAD manual departure 2026-10-16 22:20:04 ET (early 4h 9m 56s)
+TMS data as of 2026-10-16 22:22 ET
+
+[BWI] Data check: MARKED_COMPLETE_SHORT — needs verification
+Task MT2026101700526 | EWR.H → BWI.H | plate 678 | trailer -
+Reason: TMS unload marked complete, but fewer bags unloaded than due at BWI (25 of 28 bags)
+Action: Verify the record in TMS
+TMS data as of 2026-10-16 22:22 ET
+
+[BWI] Unload 60 min (single-stop: complete unloading) — 30 min left, not done
+Task MT2026101700526 | EWR.H → BWI.H | plate 678 | trailer -
+Deadline 2026-10-16 22:57 ET | now 22:28 ET
+Reason: Complete unloading not shown in TMS records; reminder, 30 min left
+Action: Finish unloading the whole truck and scan all bags in TMS
+TMS data as of 2026-10-16 22:22 ET
+
+[22:33] poll ok: 3756 BWI segments, 4 changed
+[BWI] resolved: Unload 60 min (single-stop: complete unloading) — completed on time
+Task MT2026101700526 | EWR.H → BWI.H | plate 678 | trailer -
+Deadline 2026-10-16 22:57 ET | now 22:33 ET
+Reason: Complete unloading observed between 2026-10-16 22:22 and 2026-10-16 22:33: on time based on available records
+TMS data as of 2026-10-16 22:33 ET
+
+[22:43] poll ok: 3756 BWI segments, 10 changed
+[22:54] poll ok: 3756 BWI segments, 14 changed
+[23:04] poll ok: 3756 BWI segments, 3 changed
+[BWI] Departure completed — IAD manual departure 2026-10-16 23:04:25 ET (early 3h 25m 35s)
+Task MT2026101600760 | BWI.H → IAD01 | plate 07AWAD | trailer -
+Deadline 2026-10-17 02:30 ET | now 23:05 ET
+Reason: IAD manual departure 2026-10-16 23:04:25 ET (early 3h 25m 35s)
+TMS data as of 2026-10-16 23:04 ET
+
+[23:15] poll ok: 3756 BWI segments, 14 changed
+[BWI] Departure completed — DCA manual departure 2026-10-16 23:10:51 ET (early 2h 49m 9s)
+Task MT2026101700306 | BWI.H → DCA01 | plate 2599 | trailer -
+Deadline 2026-10-17 02:00 ET | now 23:15 ET
+Reason: DCA manual departure 2026-10-16 23:10:51 ET (early 2h 49m 9s)
+TMS data as of 2026-10-16 23:15 ET
+
+[23:25] poll ok: 3756 BWI segments, 4 changed
+[23:36] poll ok: 3756 BWI segments, 8 changed
+[23:46] poll ok: 3756 BWI segments, 12 changed
+[BWI] Departure completed — IAD manual departure 2026-10-16 23:46:46 ET (early 2h 43m 14s)
+Task MT2026101600698 | BWI.H → IAD01 | plate 1916 | trailer -
+Deadline 2026-10-17 02:30 ET | now 23:47 ET
+Reason: IAD manual departure 2026-10-16 23:46:46 ET (early 2h 43m 14s)
+TMS data as of 2026-10-16 23:46 ET
+
+[23:57] poll ok: 3756 BWI segments, 4 changed
+[00:08] poll ok: 3756 BWI segments, 15 changed
+[00:18] poll ok: 3756 BWI segments, 2 changed
+[00:29] poll ok: 3756 BWI segments, 13 changed
+[00:39] poll ok: 3756 BWI segments, 6 changed
+[00:50] poll ok: 3756 BWI segments, 13 changed
+[01:00] poll ok: 3756 BWI segments, 11 changed
+[01:11] poll ok: 3756 BWI segments, 6 changed
+[01:21] poll ok: 3756 BWI segments, 15 changed
+[01:32] poll ok: 3756 BWI segments, 8 changed
+[01:43] poll ok: 3762 BWI segments, 22 changed
+[01:53] poll ok: 3762 BWI segments, 12 changed
+[02:04] poll ok: 3762 BWI segments, 5 changed
+[02:14] poll ok: 3762 BWI segments, 13 changed
+[02:25] poll ok: 3762 BWI segments, 10 changed
+[02:35] poll ok: 3762 BWI segments, 13 changed
+[02:46] poll ok: 3763 BWI segments, 13 changed
+[02:57] poll ok: 3763 BWI segments, 6 changed
+[03:07] poll ok: 3763 BWI segments, 13 changed
+[03:18] poll ok: 3763 BWI segments, 10 changed
+[03:28] poll ok: 3763 BWI segments, 14 changed
+[03:39] poll ok: 3763 BWI segments, 11 changed
+[03:50] poll ok: 3763 BWI segments, 5 changed
+[04:00] poll ok: 3763 BWI segments, 12 changed
+[04:11] poll ok: 3763 BWI segments, 16 changed
+[04:21] poll ok: 3763 BWI segments, 4 changed
+[04:32] poll ok: 3765 BWI segments, 14 changed
+[04:43] poll ok: 3767 BWI segments, 19 changed
+[04:54] poll ok: 3767 BWI segments, 7 changed
+[05:04] poll ok: 3767 BWI segments, 13 changed
+[05:15] poll ok: 3767 BWI segments, 17 changed
+[05:25] poll ok: 3767 BWI segments, 7 changed
+[05:36] poll ok: 3767 BWI segments, 16 changed
+[BWI] Departure — 30 min left, not done
+Task MT2026101400730 | BWI.H → JFK.H | plate PXD7599 | trailer 645327
+Deadline 2026-10-17 06:06 ET | now 05:36 ET
+Reason: No GPS or manual departure recorded; reminder, 30 min left
+Action: Verify the truck has left and record the departure in TMS
+TMS data as of 2026-10-17 05:36 ET
+
+[05:46] poll ok: 3767 BWI segments, 5 changed
+[BWI] Departure — 15 min left, not done
+Task MT2026101400730 | BWI.H → JFK.H | plate PXD7599 | trailer 645327
+Deadline 2026-10-17 06:06 ET | now 05:51 ET
+Reason: No GPS or manual departure recorded; reminder, 15 min left
+Action: Verify the truck has left and record the departure in TMS
+TMS data as of 2026-10-17 05:46 ET
+
+[05:57] poll ok: 3767 BWI segments, 12 changed
+[BWI] Departure — OVERDUE by 1 min
+Task MT2026101400730 | BWI.H → JFK.H | plate PXD7599 | trailer 645327
+Deadline 2026-10-17 06:06 ET | now 06:06 ET
+Reason: No GPS or manual departure recorded; deadline passed
+Action: Verify the truck has left and record the departure in TMS
+TMS data as of 2026-10-17 05:57 ET
+
+[06:07] poll ok: 3767 BWI segments, 10 changed
+[06:18] poll ok: 3767 BWI segments, 7 changed
+[06:28] poll ok: 3767 BWI segments, 15 changed
+[06:39] poll ok: 3767 BWI segments, 5 changed
+[06:49] poll ok: 3767 BWI segments, 13 changed
+[07:00] poll ok: 3767 BWI segments, 18 changed
+[07:10] poll ok: 3767 BWI segments, 5 changed
+[07:21] poll ok: 3767 BWI segments, 17 changed
+[07:31] poll ok: 3767 BWI segments, 7 changed
+[07:42] poll ok: 3767 BWI segments, 10 changed
+[07:52] poll ok: 3767 BWI segments, 17 changed
+[08:03] poll ok: 3767 BWI segments, 5 changed
+[08:13] poll ok: 3767 BWI segments, 13 changed
+[08:24] poll ok: 3767 BWI segments, 16 changed
+[08:34] poll ok: 3767 BWI segments, 8 changed
+[08:45] poll ok: 3767 BWI segments, 15 changed
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-17 08:37 (manual); TMS check-in completed
+Task MT2026101600753 | RIC01 → BWI.H | plate 21033DRR | trailer -
+Deadline 2026-10-17 08:37 ET | now 08:45 ET
+Reason: Vehicle arrived 2026-10-17 08:37 (manual); TMS check-in completed
+TMS data as of 2026-10-17 08:45 ET
+
+[08:56] poll ok: 3767 BWI segments, 7 changed
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-17 08:51 (manual); TMS check-in completed
+Task MT2026101700317 | ORF01 → BWI.H | plate 6FB | trailer -
+Deadline 2026-10-17 08:51 ET | now 08:56 ET
+Reason: Vehicle arrived 2026-10-17 08:51 (manual); TMS check-in completed
+TMS data as of 2026-10-17 08:56 ET
+
+[09:06] poll ok: 3767 BWI segments, 16 changed
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-17 08:51 (GPS); TMS check-in not yet completed
+Task MT2026101700388 | EWR.H → BWI.H | plate 571 | trailer -
+Deadline 2026-10-17 08:51 ET | now 09:07 ET
+Reason: Vehicle arrived 2026-10-17 08:51 (GPS); TMS check-in not yet completed
+TMS data as of 2026-10-17 09:06 ET
+
+[09:17] poll ok: 3767 BWI segments, 20 changed
+[BWI] Unload 60 min (multi-stop: first scan) — 30 min left, not done
+Task MT2026101700317 | ORF01 → BWI.H | plate 6FB | trailer -
+Deadline 2026-10-17 09:51 ET | now 09:22 ET
+Reason: First unloading scan not shown in TMS records (unloaded count missing; meaning unverified); reminder, 30 min left
+Action: Start unloading and scan the first bag label in TMS
+TMS data as of 2026-10-17 09:17 ET
+
+[09:27] poll ok: 3767 BWI segments, 2 changed
+[09:38] poll ok: 3767 BWI segments, 18 changed
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-17 09:27 (GPS); TMS check-in completed
+Task MT2026101700302 | EWR.H → BWI.H | plate LCX069R | trailer -
+Deadline 2026-10-17 09:27 ET | now 09:38 ET
+Reason: Vehicle arrived 2026-10-17 09:27 (GPS); TMS check-in completed
+TMS data as of 2026-10-17 09:38 ET
+
+[BWI] Unload 60 min (multi-stop: first scan) — HIGH PRIORITY — only 5 min left, not done
+Task MT2026101700317 | ORF01 → BWI.H | plate 6FB | trailer -
+Deadline 2026-10-17 09:51 ET | now 09:47 ET
+Reason: First unloading scan not shown in TMS records (unloaded count missing; meaning unverified); strong reminder, 5 min left
+Action: Start unloading and scan the first bag label in TMS
+TMS data as of 2026-10-17 09:38 ET
+
+[09:48] poll ok: 3767 BWI segments, 8 changed
+[BWI] Unload 60 min (multi-stop: first scan) — OVERDUE by 1 min based on TMS records
+Task MT2026101700317 | ORF01 → BWI.H | plate 6FB | trailer -
+Deadline 2026-10-17 09:51 ET | now 09:52 ET
+Reason: First unloading scan not shown in TMS records (unloaded count missing; meaning unverified); deadline passed
+Action: Start unloading and scan the first bag label in TMS
+TMS data as of 2026-10-17 09:48 ET
+
+[09:59] poll ok: 3767 BWI segments, 11 changed
+[10:09] poll ok: 3767 BWI segments, 7 changed
+[10:20] poll ok: 3768 BWI segments, 10 changed
+[10:30] poll ok: 3768 BWI segments, 16 changed
+[10:41] poll ok: 3768 BWI segments, 11 changed
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-17 10:31 (GPS); TMS check-in completed
+Task MT2026101700601 | EWR.H → BWI.H | plate 577 | trailer -
+Deadline 2026-10-17 10:31 ET | now 10:41 ET
+Reason: Vehicle arrived 2026-10-17 10:31 (GPS); TMS check-in completed
+TMS data as of 2026-10-17 10:41 ET
+
+[10:51] poll ok: 3768 BWI segments, 13 changed
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-17 10:41 (GPS); TMS check-in not yet completed
+Task MT2026101700603 | EWR.H → BWI.H | plate 628 | trailer -
+Deadline 2026-10-17 10:41 ET | now 10:52 ET
+Reason: Vehicle arrived 2026-10-17 10:41 (GPS); TMS check-in not yet completed
+TMS data as of 2026-10-17 10:51 ET
+
+[11:02] poll ok: 3769 BWI segments, 14 changed
+[11:12] poll ok: 3769 BWI segments, 3 changed
+[11:23] poll ok: 3769 BWI segments, 12 changed
+[11:33] poll ok: 3769 BWI segments, 14 changed
+[11:44] poll ok: 3769 BWI segments, 1 changed
+[11:54] poll ok: 3769 BWI segments, 15 changed
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-17 11:47 (GPS); TMS check-in completed
+Task MT2026101500378 | CNO.H → BWI.H | plate 3076 | trailer 233363
+Deadline 2026-10-17 11:47 ET | now 11:55 ET
+Reason: Vehicle arrived 2026-10-17 11:47 (GPS); TMS check-in completed
+TMS data as of 2026-10-17 11:54 ET
+
+[12:05] poll ok: 3769 BWI segments, 9 changed
+[12:16] poll ok: 3769 BWI segments, 7 changed
+[BWI] Unload 60 min (single-stop: complete unloading) — 30 min left, not done
+Task MT2026101500378 | CNO.H → BWI.H | plate 3076 | trailer 233363
+Deadline 2026-10-17 12:47 ET | now 12:17 ET
+Reason: Complete unloading not shown in TMS records; reminder, 30 min left
+Action: Finish unloading the whole truck and scan all bags in TMS
+TMS data as of 2026-10-17 12:16 ET
+
+[12:26] poll ok: 3769 BWI segments, 13 changed
+[BWI] resolved: Unload 60 min (single-stop: complete unloading) — completed on time
+Task MT2026101500378 | CNO.H → BWI.H | plate 3076 | trailer 233363
+Deadline 2026-10-17 12:47 ET | now 12:27 ET
+Reason: Complete unloading observed between 2026-10-17 12:16 and 2026-10-17 12:26: on time based on available records
+TMS data as of 2026-10-17 12:26 ET
+
+[12:37] poll ok: 3769 BWI segments, 4 changed
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-17 12:27 (GPS); TMS check-in completed
+Task MT2026101700600 | EWR.H → BWI.H | plate 53728 | trailer -
+Deadline 2026-10-17 12:27 ET | now 12:37 ET
+Reason: Vehicle arrived 2026-10-17 12:27 (GPS); TMS check-in completed
+TMS data as of 2026-10-17 12:37 ET
+
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-17 12:26 (GPS); TMS check-in not yet completed
+Task MT2026101700602 | EWR.H → BWI.H | plate 30692 | trailer -
+Deadline 2026-10-17 12:26 ET | now 12:37 ET
+Reason: Vehicle arrived 2026-10-17 12:26 (GPS); TMS check-in not yet completed
+TMS data as of 2026-10-17 12:37 ET
+
+[12:47] poll ok: 3770 BWI segments, 16 changed
+[12:58] poll ok: 3770 BWI segments, 12 changed
+[13:08] poll ok: 3770 BWI segments, 2 changed
+[13:19] poll ok: 3770 BWI segments, 10 changed
+[13:29] poll ok: 3770 BWI segments, 1 changed
+[13:40] poll ok: 3770 BWI segments, 12 changed
+Dashboard: http://127.0.0.1:8766
+[13:48] poll ok: 3770 BWI segments, 8 changed
+[13:59] poll ok: 3770 BWI segments, 3 changed
+Dashboard: http://127.0.0.1:8766
+[14:04] poll ok: 3770 BWI segments, 0 changed
+[14:15] poll ok: 3770 BWI segments, 11 changed
+[14:26] poll ok: 3770 BWI segments, 11 changed
+Dashboard: http://127.0.0.1:8766
+[14:26] poll ok: 3770 BWI segments, 0 changed
+Dashboard: http://127.0.0.1:8766
+[14:28] poll ok: 3770 BWI segments, 0 changed
+[14:38] poll ok: 3770 BWI segments, 2 changed
+Dashboard: http://127.0.0.1:8766
+[14:43] poll ok: 3770 BWI segments, 9 changed
+Dashboard: http://127.0.0.1:8766
+[14:54] poll ok: 3770 BWI segments, 1 changed
+[15:04] poll ok: 3770 BWI segments, 11 changed
+[BWI] Vehicle arrived — Vehicle arrived 2026-10-17 14:53 (GPS); TMS check-in not yet completed
+Task MT2026101700743 | EWR.H → BWI.H | plate 329 | trailer -
+Deadline 2026-10-17 14:53 ET | now 15:05 ET
+Reason: Vehicle arrived 2026-10-17 14:53 (GPS); TMS check-in not yet completed
+TMS data as of 2026-10-17 15:04 ET
+
+[15:15] poll ok: 3770 BWI segments, 12 changed
+Dashboard: http://127.0.0.1:8766
+[15:22] poll ok: 3770 BWI segments, 0 changed
+[15:33] poll ok: 3772 BWI segments, 13 changed
+[15:43] poll ok: 3772 BWI segments, 0 changed
+[15:54] poll ok: 3772 BWI segments, 12 changed
+[BWI] Unload 60-min check — 60 min left, not done
+Task MT2026101700743 | EWR.H → BWI.H | plate 329 | trailer -
+Deadline 2026-10-17 15:53 ET | now 15:54 ET
+Reason: Arrived 2026-10-17 14:53, 60 min passed and not unloaded yet (27/28 bags)
+Action: Finish unloading the truck and scan all bags in TMS
+TMS data as of 2026-10-17 15:54 ET
+
+[BWI] Data check: MARKED_COMPLETE_SHORT — needs verification
+Task MT2026101700743 | EWR.H → BWI.H | plate 329 | trailer -
+Reason: TMS unload marked complete, but fewer bags unloaded than due at BWI (27 of 28 bags)
+Action: Verify the record in TMS
+TMS data as of 2026-10-17 15:54 ET
+

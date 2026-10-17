@@ -1,11 +1,2 @@
-bwi_monitor.db*
-logs/
 __pycache__/
-*.csv
-.env
-secrets/
-trial/
-dev/*
-.env.dev
-!dev/run_dev.sh
-!dev/run_pilot.sh
+.DS_Store

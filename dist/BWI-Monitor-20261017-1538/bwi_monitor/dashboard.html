@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BWI TMS Monitor</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #fff; --text: #1d2228; --muted: #67707b; --line: #e3e6ea;
+    --red: #c62828; --red-bg: #fdecec; --amber: #a65f00; --amber-bg: #fff4e0; --orange: #c2410c;
+    --blue: #1f5fbf; --blue-bg: #e8f0fc; --green: #23753a; --green-bg: #e7f5ea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171b; --panel: #1c2026; --text: #e6e9ed; --muted: #9aa3ad; --line: #2c323a;
+      --red: #ff7b7b; --red-bg: #3a1d1f; --amber: #f2b45a; --amber-bg: #3a2c16; --orange: #fb923c;
+      --blue: #8db7ff; --blue-bg: #1b2a42; --green: #7fd492; --green-bg: #1a3322;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
+           padding: 14px 20px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  h1 { font-size: 17px; margin: 0; }
+  h2 { font-size: 14px; margin: 0 0 8px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  main { padding: 16px 20px 40px; max-width: 1400px; margin: 0 auto; }
+  .feed { padding: 4px 10px; border-radius: 999px; font-weight: 600; font-size: 13px; }
+  .feed.ok { background: var(--green-bg); color: var(--green); }
+  .feed.bad { background: var(--red-bg); color: var(--red); }
+  .banner { padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; font-weight: 600;
+            display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .banner.bad { background: var(--red-bg); color: var(--red); }
+  .banner.warn { background: var(--amber-bg); color: var(--amber); }
+  .banner.info { background: var(--blue-bg); color: var(--blue); }
+  .grid2 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 18px; }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; }
+  .tile b { display: block; font-size: 26px; font-variant-numeric: tabular-nums; }
+  .tile span { color: var(--muted); font-size: 12px; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; margin-bottom: 16px; }
+  .scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; }
+  td.reason { white-space: normal; min-width: 220px; }
+  tr.click { cursor: pointer; } tr.click:hover { background: var(--bg); }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .pill { padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .OVERDUE, .LATE, .MISSING { background: var(--red-bg); color: var(--red); }
+  .WARN, .RISK { background: var(--amber-bg); color: var(--amber); }
+  .HIGH { background: var(--orange); color: #fff; }
+  .CHECK, .UNCERTAIN { background: var(--blue-bg); color: var(--blue); }
+  .OK, .WAITING, .VERIFIED { background: var(--green-bg); color: var(--green); }
+  .SKIP, .PENDING, .NOT_REQUIRED { background: var(--bg); color: var(--muted); }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .shift { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: center; justify-content: space-between; }
+  .shift .state { font-size: 18px; font-weight: 700; }
+  .shift .state.ACTIVE { color: var(--green); } .shift .state.CLOSED { color: var(--muted); }
+  .bigbtn { font-size: 15px; font-weight: 700; padding: 10px 18px; border-radius: 8px; border: 0; cursor: pointer; }
+  .bigbtn.end { background: var(--red); color: #fff; } .bigbtn.start { background: var(--green); color: #fff; }
+  input, select, button { font: inherit; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px;
+                          background: var(--panel); color: var(--text); }
+  button { cursor: pointer; }
+  label.toggle { display: flex; gap: 6px; align-items: center; font-size: 13px; }
+  .muted { color: var(--muted); }
+  dialog { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--text);
+           width: min(900px, 94vw); max-height: 88vh; padding: 18px; }
+  dialog::backdrop { background: rgba(0,0,0,.35); }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 3px 14px; margin: 0 0 14px; font-size: 13px; }
+  dt { color: var(--muted); }
+  dd { margin: 0; word-break: break-word; }
+  pre { white-space: pre-wrap; font-size: 12px; background: var(--bg); padding: 8px; border-radius: 6px; margin: 4px 0; }
+  @media (max-width: 640px) { header, main { padding-left: 16px; padding-right: 16px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>BWI TMS Monitor</h1>
+  <div class="controls">
+    <input id="q" type="search" placeholder="Task, plate, route…" aria-label="Search">
+    <label class="toggle"><input id="sound" type="checkbox"> Sound alerts</label>
+    <span id="feed" class="feed">…</span>
+  </div>
+</header>
+<main>
+  <div id="banners"></div>
+
+  <div class="grid2">
+    <section aria-label="Shift control">
+      <h2>Shift control</h2>
+      <div class="shift">
+        <div>
+          <div class="muted">Reporting day <span id="shiftDate"></span></div>
+          <div id="shiftState" class="state">…</div>
+        </div>
+        <dl id="shiftInfo"></dl>
+        <div class="controls">
+          <button id="shiftBtn" class="bigbtn"></button>
+          <button data-shift="opening" title="Set the actual warehouse opening time used for unload countdowns">Set opening time</button>
+        </div>
+      </div>
+    </section>
+    <section aria-label="Notification status">
+      <h2>Notification status</h2>
+      <dl id="notifyInfo"></dl>
+    </section>
+  </div>
+
+  <div class="tiles" id="tiles"></div>
+
+  <section>
+    <h2>BWI Departure Monitor — branch lines (ORF · RIC · DCA · IAD)</h2>
+    <div class="scroll"><table id="departures"></table></div>
+    <p class="muted">Planned departure = branch-line schedule. TMS planned time is shown separately; a difference
+      is highlighted for review. Completion needs a TMS manual departure.</p>
+  </section>
+  <section>
+    <h2>Time alerts — departure and unloading</h2>
+    <div class="scroll"><table id="timeAlerts"></table></div>
+  </section>
+  <section>
+    <h2>Operation compliance — loading · departure · arrival · unloading</h2>
+    <div class="scroll"><table id="opAlerts"></table></div>
+    <h2 style="margin-top:14px">Segments with open operation status</h2>
+    <div class="scroll"><table id="opGrid"></table></div>
+  </section>
+  <section>
+    <h2>Waiting for shift start</h2>
+    <div class="scroll"><table id="pending"></table></div>
+  </section>
+  <section>
+    <h2>Upcoming deadlines</h2>
+    <div class="scroll"><table id="upcoming"></table></div>
+  </section>
+  <section>
+    <h2>Alert history — last 24 h (resolved, late, muted)</h2>
+    <div class="scroll"><table id="closed"></table></div>
+  </section>
+  <p class="muted">Internal alert rules BWI-V1.7 — not official V2 KPI results. Unload countdown starts at
+    MAX(actual arrival, warehouse opening) — never at Start Shift, which only turns alerts on; reminders at 30 and 55 min, overdue at 60 min; single-stop: all cargo
+    unloaded, multi-stop: first unloading scan. Times are judged from 10-minute TMS polls ("based on TMS records").
+    Operation compliance is separate: MISSING = missing in TMS records, RISK = not recorded yet, UNCERTAIN = TMS
+    data cannot tell. Acknowledging an alert does not complete the TMS operation.</p>
+</main>
+
+<dialog id="detail"><div id="detailBody"></div><p><button onclick="detail.close()">Close</button></p></dialog>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "-").replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const OPS = ["LOADING", "DEPARTURE", "ARRIVAL", "UNLOADING"];
+const typeLabel = (t) => t === "DEPARTURE" ? "Departure (TMS plan)" : t === "BRANCH_DEPARTURE" ? "Departure"
+  : t === "DEPARTURE_DONE" ? "Departure completed" : t === "UNLOAD" ? "Unload first scan"
+  : t === "UNLOAD_60" ? "Unload 60-min check"
+  : t.startsWith("OP:") ? "Operation: " + t.slice(3).toLowerCase()
+  : t.startsWith("DATA:") ? "Data: " + t.slice(5).toLowerCase().replaceAll("_", " ") : t;
+const mins = (m) => m == null ? "-" : m < 0 ? `${-m} min over` : `${m} min left`;
+const stagePill = (a) => {
+  const high = a.priority === "high";
+  const text = a.stage === "WARN" ? (high ? "STRONG " : "WARN ") + a.warn_level + " min" : a.stage;
+  return `<span class="pill ${high ? "HIGH" : a.stage}">${text}</span>`;
+};
+const store = {get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } },
+               set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} }};
+let state = null, seenAlarm = null, audio = null;
+
+function matches(row) {
+  const q = $("q").value.trim().toLowerCase();
+  if (!q) return true;
+  return [row.taskNo, row.licensePlateNo, row.placeOfOrigin, row.destination, row.alert_type]
+    .some((v) => String(v ?? "").toLowerCase().includes(q));
+}
+
+function table(el, head, rows, cells) {
+  rows = rows.filter(matches);
+  el.innerHTML = `<tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr>` +
+    (rows.length ? rows.map((r) => `<tr class="click" data-seg="${r.segment_id}">${cells(r)}</tr>`).join("")
+                 : `<tr><td colspan="${head.length}" class="muted">Nothing here</td></tr>`);
+}
+
+const ackCell = (a) => `<td>${a.acknowledged_at ? '<span class="muted">acknowledged</span>'
+  : `<button data-ack="${a.id}" title="Marks the alert as seen. Does not complete the TMS operation.">Acknowledge</button>`}</td>`;
+
+function renderBanners(s) {
+  const h = s.health, sh = s.shift, out = [];
+  const sys = s.system.map((a) => a.reason).join(" · ");
+  if (h.stale || sys) out.push(`<div class="banner bad">Monitoring data may be out of date. ${esc(sys || h.last_error || "")}</div>`);
+  if (sh.open_overnight_warning) out.push(`<div class="banner warn"><span>The shift started ${esc(sh.confirmed_start_et)} is
+    still open after the reporting-day change. Confirm it is still active, or end it.</span>
+    <button data-shift="confirm-open">Still active — confirm</button><button data-shift="end">End shift now</button></div>`);
+  if (sh.manual_arrival_without_shift) out.push(`<div class="banner info"><span>TMS shows a manual arrival at
+    ${esc(sh.earliest_manual_ref.time_et)} (${esc(sh.earliest_manual_ref.taskNo)}) but no shift is started.</span>
+    <button class="bigbtn start" data-shift="start">START SHIFT / RESUME ALERTS</button></div>`);
+  else if (!sh.alerts_enabled && sh.reminder_sent_et) out.push(`<div class="banner warn"><span>🔔 BWI Shift Reminder —
+    a new working day is approaching. Please confirm that warehouse operations have started.</span>
+    <button class="bigbtn start" data-shift="start">START SHIFT / RESUME ALERTS</button></div>`);
+  $("banners").innerHTML = out.join("");
+}
+
+function render() {
+  const s = state, h = s.health, sh = s.shift, c = s.counts, fs = s.feishu;
+  $("feed").className = "feed " + (h.stale ? "bad" : "ok");
+  $("feed").textContent = h.stale ? `Data stale — last OK ${h.last_ok_et}` : `Live · TMS ${h.last_ok_et} ET · every ${h.poll_minutes} min`;
+  renderBanners(s);
+
+  $("shiftDate").textContent = sh.reporting_date;
+  $("shiftState").className = "state " + sh.state;
+  $("shiftState").textContent = sh.label;
+  const ref = sh.earliest_manual_ref;
+  $("shiftInfo").innerHTML = [
+    ["Warehouse opening (unload countdowns)", sh.opening ? `${sh.opening.time_et} ET · ${sh.opening.source}${sh.opening.by ? " by " + sh.opening.by : ""}` : "unknown — no morning manual check-in yet"],
+    ["Monitoring activated (alerts only)", sh.confirmed_start_et ? `${sh.confirmed_start_et} ET by ${sh.started_by}` : "not started"],
+    ["Earliest TMS manual check-in", ref ? `${ref.time_et} · ${ref.taskNo} · ${ref.plate || "-"}` : "none yet today"],
+    ["Active trucks", c.active_trucks], ["Pending alerts", c.pending_alerts],
+    ["Last end", sh.last_end_et ? `${sh.last_end_et} by ${sh.last_ended_by}` : "-"]]
+    .map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("");
+  $("shiftBtn").className = "bigbtn " + (sh.alerts_enabled ? "end" : "start");
+  $("shiftBtn").textContent = sh.alerts_enabled ? "END SHIFT / STOP ALERTS" : "START SHIFT / RESUME ALERTS";
+  $("shiftBtn").dataset.shift = sh.alerts_enabled ? "end" : "start";
+
+  const last = fs.last;
+  $("notifyInfo").innerHTML = [
+    ["Feishu", !fs.enabled ? "disabled" : fs.test_mode ? "TEST MODE (recorded, not delivered)"
+      : fs.live_this_shift ? "LIVE for this shift" : fs.authorization_pending ? "authorized — goes live at Start Shift"
+      : "not authorized for this shift (recorded, not delivered)"],
+    ["Duplicates prevented", fs.duplicates_prevented],
+    ["Webhook", fs.configured ? "configured" : "not configured"],
+    ["Admin channel", fs.admin_channel ? "configured" : "not configured"],
+    ["Operational alerts", sh.alerts_enabled ? "on (shift active)" : "muted (no active shift)"],
+    ["Last Feishu delivery", last ? `${last.at_et} · ${last.channel} · ${last.ok ? "OK" : "FAILED: " + last.error}` : "none yet"]]
+    .map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("");
+
+  $("tiles").innerHTML = [["Unload/departure overdue", c.overdue], ["Reminders", c.warning],
+    ["Operation missing", c.op_missing], ["Operation risk", c.op_risk], ["Data checks", c.data],
+    ["Waiting for shift", c.pending_start], ["Uncertain (24 h)", c.uncertain_24h], ["Monitoring", c.monitoring]]
+    .map(([k, v]) => `<div class="tile"><b>${v}</b><span>${k}</span></div>`).join("");
+
+  const depStatus = (s) => s === "On Time" ? "OK" : s.startsWith("Late") ? "LATE" : s === "Overdue" ? "OVERDUE"
+    : s.startsWith("Voided") || s === "Truck not at BWI" ? "SKIP" : s.startsWith("Validity") ? "UNCERTAIN" : "WAITING";
+  table($("departures"), ["Route", "Task", "Internal deadline", "TMS planned", "Manual departure", "Margin / remaining", "Status", "Notification"],
+    s.departures, (r) =>
+    `<td><b>${esc(r.route)}</b></td><td>${esc(r.taskNo)}</td><td>${esc(r.deadline_et)}</td>
+     <td>${r.discrepancy_min ? `<span class="pill WARN" title="differs from the branch schedule">${esc(r.tms_planned_et)} (${r.discrepancy_min > 0 ? "+" : ""}${r.discrepancy_min} min)</span>` : esc(r.tms_planned_et)}</td>
+     <td>${esc(r.manual_et || "not yet")}</td><td class="num">${r.margin ? esc(r.margin) : r.minutes_left == null ? "-" : mins(r.minutes_left)}</td>
+     <td><span class="pill ${depStatus(r.status)}" title="${esc(r.validity_detail || "")}">${esc(r.status)}</span></td><td>${esc(r.notification)}</td>`);
+  table($("timeAlerts"), ["Stage", "Type", "Task", "Route", "Plate", "Deadline (ET)", "Time", "Reason", ""], s.time_alerts, (a) =>
+    `<td>${stagePill(a)}</td><td>${typeLabel(a.alert_type)}</td><td>${esc(a.taskNo)}</td>
+     <td>${esc(a.placeOfOrigin)} → ${esc(a.destination)}</td><td>${esc(a.licensePlateNo)}</td><td>${esc(a.deadline_et)}</td>
+     <td class="num">${a.deadline ? mins(a.minutes_left) : ""}</td><td class="reason">${esc(a.reason)}</td>${ackCell(a)}`);
+  table($("opAlerts"), ["Status", "Operation", "Task", "Route", "Plate", "Detail", ""], s.compliance_alerts, (a) =>
+    `<td><span class="pill ${a.stage}">${a.stage}</span></td><td>${typeLabel(a.alert_type)}</td><td>${esc(a.taskNo)}</td>
+     <td>${esc(a.placeOfOrigin)} → ${esc(a.destination)}</td><td>${esc(a.licensePlateNo)}</td>
+     <td class="reason">${esc(a.reason)}</td>${ackCell(a)}`);
+  table($("opGrid"), ["Task", "Route", "Plate", ...OPS.map((o) => o[0] + o.slice(1).toLowerCase())], s.compliance, (r) =>
+    `<td>${esc(r.taskNo)}</td><td>${esc(r.placeOfOrigin)} → ${esc(r.destination)}</td><td>${esc(r.licensePlateNo)}</td>` +
+    OPS.map((o) => r.ops[o] ? `<td title="${esc(r.ops[o].reason)}"><span class="pill ${r.ops[o].status}">${r.ops[o].status}</span></td>`
+                            : `<td class="muted">—</td>`).join(""));
+  table($("pending"), ["Status", "Task", "Route", "Plate", "Arrived", "Reason"], s.pending, (u) =>
+    `<td><span class="pill PENDING">PENDING</span></td><td>${esc(u.taskNo)}</td>
+     <td>${esc(u.placeOfOrigin)} → ${esc(u.destination)}</td><td>${esc(u.licensePlateNo)}</td>
+     <td>${esc(u.arrival_et)}</td><td class="reason">${esc(u.reason)}</td>`);
+  table($("upcoming"), ["Status", "Type", "Task", "Route", "Plate", "Vehicle", "Countdown from", "Deadline (ET)", "Time"], s.upcoming, (u) =>
+    `<td>${stagePill(u)}</td><td>${typeLabel(u.alert_type)}</td><td>${esc(u.taskNo)}</td>
+     <td>${esc(u.placeOfOrigin)} → ${esc(u.destination)}</td><td>${esc(u.licensePlateNo)}</td><td>${esc(u.vehicleStatusStr)}</td>
+     <td>${esc(u.countdown_start_et)}</td><td>${esc(u.deadline_et)}</td><td class="num">${mins(u.minutes_left)}</td>`);
+  table($("closed"), ["Result", "Type", "Task", "Route", "Plate", "Deadline (ET)", "Notified", "Reason"], s.closed, (a) =>
+    `<td><span class="pill ${a.stage}">${esc(a.outcome)}</span></td><td>${typeLabel(a.alert_type)}</td><td>${esc(a.taskNo)}</td>
+     <td>${esc(a.placeOfOrigin)} → ${esc(a.destination)}</td><td>${esc(a.licensePlateNo)}</td><td>${esc(a.deadline_et)}</td>
+     <td>${a.muted ? '<span class="muted">muted</span>' : (a.last_notified_at ? "yes" : "-")}</td><td class="reason">${esc(a.reason)}</td>`);
+  soundCheck(s);
+}
+
+// Sound: only after the user enables it (browser autoplay rules need a click), only for new urgent alerts.
+function beep() {
+  if (!audio) return;
+  const o = audio.createOscillator(), g = audio.createGain();
+  o.frequency.value = 880; g.gain.value = 0.15; o.connect(g); g.connect(audio.destination);
+  o.start(); o.stop(audio.currentTime + 0.35);
+}
+function soundCheck(s) {
+  const urgent = [...s.time_alerts, ...s.compliance_alerts]
+    .filter((a) => a.stage === "OVERDUE" || a.stage === "MISSING" || a.priority === "high")
+    .map((a) => `${a.id}:${a.stage}:${a.warn_level}`);
+  if (seenAlarm && $("sound").checked && urgent.some((k) => !seenAlarm.has(k))) beep();
+  seenAlarm = new Set(urgent);
+}
+$("sound").checked = store.get("bwi-sound") === "1";
+$("sound").addEventListener("change", () => {
+  store.set("bwi-sound", $("sound").checked ? "1" : "0");
+  if ($("sound").checked) { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume(); beep(); }
+});
+document.addEventListener("click", () => { if ($("sound").checked && !audio) audio = new (window.AudioContext || window.webkitAudioContext)(); }, {once: true});
+
+async function load() {
+  try {
+    state = await (await fetch("/api/state")).json();
+    render();
+  } catch (e) {
+    $("feed").className = "feed bad"; $("feed").textContent = "Dashboard cannot reach the monitor service";
+  }
+}
+
+async function showSegment(id) {
+  if (!id || id === "0") return;
+  const d = await (await fetch("/api/segment/" + id)).json();
+  const seg = Object.entries(d.segment).map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("");
+  const list = (rows, f) => rows.length ? rows.map(f).join("") : '<p class="muted">None</p>';
+  $("detailBody").innerHTML = `
+    <h2>${esc(d.segment.taskNo)} · ${esc(d.segment.placeOfOrigin)} → ${esc(d.segment.destination)}</h2>
+    <dl>${seg}</dl>
+    <h2>Current rule results</h2>
+    ${list(d.findings, (f) => `<p><span class="pill ${f.stage}">${f.stage}</span> ${typeLabel(f.alert_type)} ·
+      deadline ${esc(f.deadline_et)} · ${esc(f.reason)}</p>`)}
+    ${(() => { const u = d.findings.find((f) => f.alert_type === "UNLOAD"); return u ? `<dl>${Object.entries(u.evidence)
+      .map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` : ""; })()}
+    <h2>Task segments</h2>
+    ${list(d.task_segments, (s) => `<p>#${esc(s.sortNum)} ${esc(s.placeOfOrigin)} → ${esc(s.destination)} · ${esc(s.vehicleStatusStr)}</p>`)}
+    <h2>Alert history</h2>
+    ${list(d.events, (e) => `<p class="muted">${esc(e.at)} · alert ${e.alert_id} · ${esc(e.from_stage)} → ${esc(e.to_stage)} · ${esc(e.note)}</p>`)}
+    <h2>Notifications</h2>
+    ${list(d.notifications, (n) => `<p class="muted">${esc(n.at)} · ${esc(n.channel)} ${n.ok ? "" : "FAILED " + esc(n.error)}</p><pre>${esc(n.text)}</pre>`)}
+    <p class="muted">${d.history_versions} stored versions of this segment.</p>`;
+  $("detail").showModal();
+}
+
+async function shiftAction(action) {
+  let extra = {};
+  if (action === "opening") {
+    const hhmm = (prompt("Actual warehouse opening time today (HH:MM, Eastern):") || "").trim();
+    if (!hhmm) return;
+    extra = {time: hhmm};
+  }
+  if (action === "end") {
+    const open = (state?.departures || []).filter((r) => r.status === "Pending" || r.status === "Overdue");
+    if (open.length && !confirm(`${open.length} departure task(s) still have no TMS manual departure:\n\n` +
+        open.map((r) => `${r.route}  ${r.taskNo}  deadline ${r.deadline_et.slice(11)}  (${r.status})`).join("\n") +
+        "\n\nThey stay on the dashboard, but Feishu alerts stop. End the shift anyway?")) return;
+  }
+  const verb = {start: "Start monitoring now (turns alerts on; does not change unload deadlines)",
+                opening: "Confirm the warehouse opening time",
+                end: "End the shift now and stop alerts", "confirm-open": "Confirm the shift is still active"}[action];
+  const user = (prompt(`${verb}. Your name:`) || "").trim();
+  if (!user) return;
+  const headers = {"Content-Type": "application/json"};
+  if (state?.shift?.admin_token_required) headers["X-Admin-Token"] = prompt("Admin token:") || "";
+  const r = await fetch(`/api/shift/${action}`, {method: "POST", headers, body: JSON.stringify({user, ...extra})});
+  if (!r.ok) { alertBanner("Shift change refused: " + (await r.json()).error); return; }
+  load();
+}
+function alertBanner(text) { $("banners").insertAdjacentHTML("afterbegin", `<div class="banner bad">${esc(text)}</div>`); }
+
+document.addEventListener("click", async (e) => {
+  const sa = e.target.dataset?.shift;
+  if (sa) return shiftAction(sa);
+  const ack = e.target.dataset?.ack;
+  if (ack) { e.stopPropagation(); await fetch(`/api/alerts/${ack}/ack`, {method: "POST"}); return load(); }
+  const row = e.target.closest("tr[data-seg]");
+  if (row) showSegment(row.dataset.seg);
+});
+$("q").addEventListener("input", () => state && render());
+load();
+setInterval(load, 30000);
+</script>
+</body>
+</html>
