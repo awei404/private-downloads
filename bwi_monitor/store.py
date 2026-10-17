@@ -9,6 +9,8 @@ import sqlite3
 from datetime import datetime, timedelta, timezone
 
 from . import config, rules
+from .driver_arrivals import DriverArrivals, SCHEMA as DRIVER_ARRIVAL_SCHEMA
+from .driver_scores import DriverScores, SCHEMA as DRIVER_SCORE_SCHEMA
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS poll_runs (
@@ -71,6 +73,10 @@ class Store:
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.executescript(SCHEMA)
+        self.db.executescript(DRIVER_ARRIVAL_SCHEMA)
+        self.driver_arrivals = DriverArrivals(self.db)
+        self.db.executescript(DRIVER_SCORE_SCHEMA)
+        self.driver_scores = DriverScores(self.db)
         cols = {r["name"] for r in self.db.execute("PRAGMA table_info(segments)")}
         if "obs" not in cols:
             self.db.execute("ALTER TABLE segments ADD COLUMN obs TEXT")

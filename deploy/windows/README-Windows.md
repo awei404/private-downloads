@@ -1,28 +1,34 @@
-# BWI TMS 监控系统 · Windows 正式环境安装说明
+# BWI Monitor · Windows 新版
 
-## 准备
-1. Python 会自动安装。若自动安装失败，再手动装 **Python 3.12**（python.org）：勾选 “Add python.exe to PATH”，并选 “Customize installation → Install Python for all users”。
-2. 把安装包解压到任意位置，例如桌面 `BWI-Monitor-package`。
-3. 在 `secrets` 文件夹放两个文本文件（只有一行，不要多余空格）：
-   - `gofo_auth`：TMS 登录凭证（`Bearer eyJ...`，从浏览器开发者工具复制）
-   - `feishu_webhook`：飞书机器人 Webhook 地址
-   安装包里如果已经带了这两个文件，就不用再放。
+## 下载、安装或升级
 
-## 安装（双击即可）
-1. 解压安装包。
-2. 双击 **Install-BWI-Monitor.bat**，弹出“是否允许更改”时点“是”。
-   - 没装 Python 会自动安装 Python 3.12（需要几分钟）。
-   - 装完自动打开监控台。窗口最后显示的 http://这台电脑IP:8766 给仓库其他电脑用。
-3. 程序装到 `C:\BWI-Monitor`，开机自动启动，出错 1 分钟后自动重启，电脑不会自动睡眠。
-4. 升级：解压新安装包，再双击一次 Install-BWI-Monitor.bat（数据、密钥、设置都会保留）。
-   停用：双击 Uninstall-BWI-Monitor.bat（保留数据）。
+1. 下载 `BWI-Monitor-Windows.zip`，先解压。
+2. 双击 `Install-BWI-Monitor.bat`，允许管理员提示。
+3. 程序默认装到 `C:\BWI-Monitor`。缺少 Python 时会尝试自动安装 Python 3.12；需要联网安装依赖。
+4. 已安装过的电脑重复执行即可升级：**本机数据库、secrets 和 .env 保留**。升级前的代码、设置和数据库备份集中放在 `C:\BWI-Monitor\backups`。
+5. `Download-Windows.bat` 可双击打开 GitHub 最新版 ZIP 下载。
 
-## 第一天试运行
-- 默认 **飞书测试模式**（只记录，不发送）。确认监控台数据正常后，把 `C:\BWI-Monitor\.env` 里
-  `FEISHU_TEST_MODE=true` 改成 `false`，然后重启任务：`Restart-ScheduledTask "BWI TMS Monitor"`（或重启电脑）。
-- **同一时间只能有一台电脑正式发送飞书**：Windows 正式发送后，Mac 必须切到开发模式。
-- 修改 `.env` 里的 `BWI_ADMIN_TOKEN`（上下班、关闭告警时需要输入）。
+首次安装没有运营数据或凭证。把现有 TMS 凭证放到本机 `C:\BWI-Monitor\secrets\gofo_auth`；需要飞书时另在本机配置 `feishu_webhook`。不要把这些文件上传到 GitHub。首次生成的管理员口令保存在本机 `.env` 的 `BWI_ADMIN_TOKEN`。
+
+已安装电脑的 `.env` 不会被覆盖。首次安装保持飞书测试模式；Windows 正式接管发送之前，应先停用另一台电脑的正式发送，避免两端同时通知。无需飞书也可以启动看板。
+
+## 新功能
+
+同一个 Windows 看板（默认 `http://127.0.0.1:8766/dashboard-v2`）包含原收车、卸货、发车、操作异常预警，以及司机到场、评分、导出和 Check-in 打印。Windows 只启动一个运输监控进程；司机资料在后台只读同步。
+
+- 司机功能仅用于 **BWI.H 始发、首段去 ORF01/RIC01/DCA01/IAD01** 的任务。往返任务按首次离站支线统计，同一 MT 不重复计分。
+- 姓名、电话读取 TMS 派车任务登记，不用车辆默认司机代替。实际到场在现场填写，不取 TMS 到车时间。
+- 约定到场沿用旧调度已确认的具体 MT 约定。新电脑没有这些约定时显示待确认；如需迁移旧库，请在本地迁移，不经 GitHub。
+- 评分沿用迟到、错线路、回货和人工扣分；提供近 30 个营业日均分和人工总分调整。
+- Excel 电话默认不导出，可勾选加入。
+- 点击任务旁的 **打印 Check-in**，或在任务详情中点击打印。打印页含首站及旧系统地址、完整线路、司机/供应商/车牌、约定和实际到场时间、Dock、回货要求、备注和签字栏。支持 Letter 纸或另存 PDF。
+- Dock、回货要求和备注仅用于本次打印。未登记的实际到场保持空缺，不会自动补成当前时间；打印前先保存到场修改。
 
 ## 日常
-- TMS 登录过期：监控台出现红色“数据可能过期”。更新 `C:\BWI-Monitor\secrets\gofo_auth` 即可，10 分钟内自动生效，不用重启。
-- 日志：`C:\BWI-Monitor\data\service.log`；数据库：`C:\BWI-Monitor\data\bwi_monitor.db`（请定期备份）。
+
+- TMS 凭证过期：更新本机 `secrets\gofo_auth`，后台下一次读取会生效。
+- 程序日志：`data\service.log`；数据库默认 `data\bwi_monitor.db`。
+- 修改 `.env` 后，在任务计划程序中重新运行 `BWI TMS Monitor`。
+- 原监控规则和通知判定未因司机功能修改。
+
+本包只含程序、测试过的安装脚本和配置模板，不含真实司机资料、凭证或运营数据库。

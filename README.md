@@ -1,5 +1,62 @@
 # BWI TMS real-time alert monitor
 
+## Windows 新版与 Check-in 打印（2026.10.17.1）
+
+[下载 Windows 最新 ZIP](https://github.com/awei404/private-downloads/releases/latest/download/BWI-Monitor-Windows.zip)。解压后双击 `Install-BWI-Monitor.bat` 安装或升级；本机数据库、凭证和设置保留，升级备份集中在安装目录 `backups`。详细步骤见 [Windows 说明](deploy/windows/README-Windows.md)。发布包不包含运营数据或凭证。
+
+任务旁和任务详情中新增“打印 Check-in”。使用保存的实际到场、旧调度确认约定，以及 TMS 登记的司机、供应商、车牌；首站地址沿用旧 Check-in 页。打印页可补填 Dock、回货要求和备注，并有司机须知签字栏。使用 Letter 纸或另存 PDF。打印内容不写回 TMS、不改变评分；未登记的时间保持待填写。
+
+本次新增司机功能前后，`rules.py`、`departures.py`、`compliance.py`、`engine.py`、`shift.py`、`tms.py`、`notify.py`、`feishu.py`、`config.py`、`__main__.py` 的检测和通知逻辑保持一致。Windows 使用单独入口组合原监控和只读司机同步。
+
+## 司机到场、评分与 Excel 导出（2026-10-17）
+
+本机入口：[司机看板](http://127.0.0.1:8768/dashboard-v2#tab=scores)。在“司机评分与导出”查看任务与司机汇总，或从发车列表打开任务详情。司机功能仅用于**整个 MT 任务首次从 BWI.H 出发，首段前往 ORF01、RIC01、DCA01、IAD01 的四条支线**；不包含从其他站始发后途经 BWI 的串点任务、收车任务或其他线路。BWI 始发后到支线再返回 BWI 的往返任务按首次发车支线统计，同一任务不重复计分。范围限制也适用于同步、编辑、评分和导出。
+
+### 司机资料与现场到场
+
+- 司机资料从 TMS 读取可用信息，也可点击“同步 TMS 司机”请求更新。已实测派车任务详情的司机姓名、电话字段；按同一 MT 的任务 ID 读取，列表中的空字段不会覆盖详情，车辆默认司机也不会代替任务登记司机。未登记的任务仍可能缺资料。缺失项显示待同步或待补齐；身份资料不可靠时，不用车牌代替司机、不按同名猜测合并，也不纳入司机总分。
+- **“司机实际到场（美东）”由现场填写完整日期和时间**，可修改，清除前页面要求确认。它与 TMS 的 GPS、人工收车、发车时间独立，不从这些字段或当前时间自动补成事实。旧历史回填也不作为新登记的实际到场。
+- 同一 MT 在 BWI 共用一条到场登记和一份任务评分；多航段和重复同步不会新增同趟扣分。变更记录保留，遇到其他人的修改时先重新读取，再核对保存。
+- 约定到场只沿用旧调度中已确认匹配同一 MT 的具体约定。缺少约定则待确认；不用 TMS 计划发车、固定线路时刻或历史最常见时间推定。迟到比较的是**司机约定到 BWI 的时间与现场实际到场**，不是发车截止时间。
+
+### 完整任务评分与司机总分
+
+每趟任务以 100 分开始，按旧调度当前规则计算：
+
+- 跑错线路：本趟直接记 0 分。
+- 司机迟到：扣 45 分；按时或提前不扣分。
+- 回货：无需回货或已完成不扣分；未完成扣 25 分；部分完成扣 10 分。
+- 人工扣分：0–100 分，有扣分时必须填写原因；最终任务分最低为 0。
+
+“其他扣分（发生时填写）”中记录线路错误、回货结果和人工扣分。缺实际到场、缺已确认约定，或回货结果为待确认时，任务保留待评，不按满分处理，也不进入自动均分；**已确认跑错线路则记 0 分，即使其他资料仍待补充**。到场项评分与完整任务评分分别显示，原有发车、收车、卸货及操作缺失预警不会自动变成司机扣分。
+
+司机自动总分是严格近 **30 个营业日**内已评分任务的算术平均：沿用现有美东 **05:00** 营业日边界，以当前营业日及之前 29 个营业日为窗口；页面展示服务端计算的窗口。没有可计分任务显示待评。日期、线路筛选决定展示的任务和司机名单，每位司机的均分仍按固定近 30 个营业日计算。
+
+“调整总分”在独立窗口维护人工总分（0–100），必须填写原因；人工总分覆盖显示值，自动均分继续保留。选择“恢复自动评分”并填写原因后取消覆盖。人工总分调整与单趟扣分分开存储，不覆盖任务评分或其他未保存输入。
+
+### Excel 导出
+
+“导出 Excel”按已应用的任务日期、线路筛选生成“说明”“四支线任务”“司机评分”三张工作表。顶部搜索只筛选页面显示，不影响 Excel 范围。**默认不导出电话**；明确勾选“导出含电话”后才包含电话。配置管理员口令时，导出也需输入口令；口令不放入下载链接。
+
+### 运行与旧约定导入
+
+原监控进程继续使用 8766，原有收车、卸货、发车和操作合规预警保留。8768 共用 `dev/dev.db`，提供司机看板、登记、评分、导出及司机资料只读同步；不启动第二套运输节点轮询、预警引擎或飞书发送。若入口未运行，在此目录双击 `司机实际到场.command`，或执行：
+
+```bash
+python3 -m bwi_monitor.driver_dashboard --database dev/dev.db --port 8768
+```
+
+沿用 `BWI_ADMIN_TOKEN` 和 `BWI_DASHBOARD_READONLY` 设置，独立入口只监听本机。只读模式可查看和导出，禁止编辑、评分调整及司机同步。离线验证可使用 `--no-driver-sync` 禁止读取 TMS。新增资料和评分记录保存在独立表中，登记及评分不会改写 TMS 原始字段或预警规则。
+
+首次导入旧约定前备份数据库，先检查，再导入：
+
+```bash
+python3 tools/import_driver_appointments.py --target dev/dev.db --dry-run
+python3 tools/import_driver_appointments.py --target dev/dev.db
+```
+
+导入默认优先读取已安装旧调度的数据库，只读来源，仅导入已确认 MT 的约定；不复制司机个人信息、旧实际到场或旧评分，不覆盖已有约定。新任务之后若在旧系统有确认约定，可重复导入。旧系统凌晨 03:00 前归前一营业日，导入时转为实际日历日期；不改变新看板原有的 05:00 营业日边界。
+
 Implements `BWI_TMS_实时预警规则_V1.0.md` and phase 1–2 of `BWI_TMS_实时预警系统_软件需求说明书_V1.0.md`.
 
 A background service polls GOFO TMS (read-only) every 10 minutes and re-checks deadlines every 60 seconds
@@ -240,7 +297,10 @@ Data checks are flagged for verification and never treated as KPI results.
 | `bwi_monitor/store.py` | SQLite: polls, segments + change history, alerts, events, notifications |
 | `bwi_monitor/tms.py` | read-only API client (BWI filter `transitId=319`, retries, 401 detection) |
 | `bwi_monitor/notify.py` | console + JSONL log + optional webhook |
-| `bwi_monitor/web.py`, `dashboard.html` | dashboard and JSON API (`/api/state`, `/api/segment/<id>`) |
+| `bwi_monitor/web.py`, `dashboard.html`, `dashboard_v2.html` | monitoring dashboard, driver-score UI and JSON API |
+| `bwi_monitor/driver_arrivals.py`, `driver_scores.py` | independent on-site arrivals, task deductions and driver-score overrides |
+| `bwi_monitor/driver_sync.py` | bounded read-only TMS driver-profile synchronization; missing fields stay pending |
+| `bwi_monitor/driver_export.py`, `driver_dashboard.py` | scoped Excel export and local driver dashboard entry point |
 
 ## Still open (needs business confirmation)
 

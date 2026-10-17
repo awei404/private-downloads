@@ -73,6 +73,27 @@
   dd { margin: 0; word-break: break-word; }
   pre { white-space: pre-wrap; font-size: 12px; background: var(--bg); padding: 8px; border-radius: 6px; margin: 4px 0; }
   @media (max-width: 640px) { header, main { padding-left: 16px; padding-right: 16px; } }
+
+  .arrival-panel { border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin: 16px 0; background: var(--panel); }
+  .arrival-panel h3 { margin: 0 0 8px; font-size: 16px; }
+  .arrival-summary { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 12px 0; }
+  .arrival-summary > div { min-width: 150px; }
+  .arrival-label, .arrival-help { color: var(--muted); font-size: 12px; }
+  .arrival-value { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .arrival-controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; margin-top: 12px; }
+  .arrival-input-label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; }
+  .arrival-input { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; min-height: 38px; max-width: 100%; }
+  .arrival-action { font: inherit; font-size: 13px; border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; background: var(--panel); color: var(--text); cursor: pointer; }
+  .arrival-action.primary { background: var(--brand, var(--blue)); color: #fff; border-color: transparent; }
+  .arrival-action:disabled, .arrival-input:disabled { opacity: .5; cursor: not-allowed; }
+  .arrival-feedback { margin: 10px 0 0; font-size: 13px; white-space: pre-wrap; }
+  .arrival-feedback.error { color: var(--bad, var(--red)); }
+  .arrival-feedback.success { color: var(--ok, var(--green)); }
+  .arrival-cell { border: 0; padding: 2px 0; background: transparent; color: var(--brand-2, var(--blue)); text-align: left; cursor: pointer; font: inherit; font-size: 12px; }
+  .arrival-cell span { display: block; color: var(--muted); font-size: 11px; }
+  .arrival-cell:hover { text-decoration: underline; }
+  .arrival-panel [hidden], #driverScoringLink[hidden] { display: none !important; }
+
 </style>
 </head>
 <body>
@@ -80,12 +101,13 @@
   <h1>BWI TMS Monitor</h1>
   <div class="controls">
     <input id="q" type="search" placeholder="Task, plate, route…" aria-label="Search">
-    <label class="toggle"><input id="sound" type="checkbox"> Sound alerts</label>
+    <label class="toggle" for="sound"><input id="sound" type="checkbox"> Sound alerts</label>
     <span id="feed" class="feed">…</span>
   </div>
 </header>
 <main>
   <div id="banners"></div>
+  <div id="driverScoringLink" class="banner info" hidden><span>司机评分与 Excel 导出：仅 BWI.H 始发的 ORF01 / RIC01 / DCA01 / IAD01。</span><a href="/dashboard-v2#tab=scores">打开司机评分与导出 →</a></div>
 
   <div class="grid2">
     <section aria-label="Shift control">
@@ -200,6 +222,7 @@ function renderBanners(s) {
 }
 
 function render() {
+  $("driverScoringLink").hidden = !state?.driver_scoring_enabled;
   const s = state, h = s.health, sh = s.shift, c = s.counts, fs = s.feishu;
   $("feed").className = "feed " + (h.stale ? "bad" : "ok");
   $("feed").textContent = h.stale ? `Data stale — last OK ${h.last_ok_et}` : `Live · TMS ${h.last_ok_et} ET · every ${h.poll_minutes} min`;
@@ -296,19 +319,166 @@ document.addEventListener("click", () => { if ($("sound").checked && !audio) aud
 async function load() {
   try {
     state = await (await fetch("/api/state")).json();
-    render();
+    render(); refreshArrivalSettings();
   } catch (e) {
     $("feed").className = "feed bad"; $("feed").textContent = "Dashboard cannot reach the monitor service";
   }
 }
 
+
+/* Driver arrival is entered by dispatch; it never substitutes a TMS timestamp. */
+let arrivalEditor = null, segmentRequest = 0;
+const arrivalDrafts = new Map(), arrivalPending = new Set();
+const arrivalInputValue = (value) => value ? String(value).replace(" ", "T").slice(0, 16) : "";
+const arrivalTimeText = (value) => value ? String(value).replace("T", " ").slice(0, 16) : "未填写";
+const arrivalStatusText = (a) => ({unrecorded: "未填写实际到场", pending_schedule: "约定时间待确认", on_time: "准时到场", late: "迟到"})[a?.status] || "待核实";
+function arrivalCell(row) {
+  const a = row.driver_arrival || {status: "unrecorded"};
+  if (a.eligible === false) return '<span class="arrival-help">无需填写</span>';
+  const time = arrivalTimeText(a.actual_arrival_et);
+  const sub = a.score == null ? arrivalStatusText(a) : `到场项 ${a.score} 分 · ${arrivalStatusText(a)}`;
+  return `<button type="button" class="arrival-cell" data-arrival-open="${esc(row.segment_id)}" aria-label="查看或填写司机实际到场（美东）">${esc(time)}<span>${esc(sub)}</span></button>`;
+}
+function arrivalSettings() { return arrivalEditor?.settings || state?.driver_arrival_settings || {}; }
+function arrivalSummary(a) {
+  const score = a.score == null ? (a.actual_arrival_et ? "待确认约定时间" : "待填写实际到场") : `${a.score} 分`;
+  const late = a.late_minutes == null ? "" : a.late_minutes > 0 ? ` · 迟到 ${a.late_minutes} 分钟` : a.late_minutes < 0 ? ` · 提前 ${-a.late_minutes} 分钟` : " · 准时";
+  return `<div class="arrival-summary">
+    <div><div class="arrival-label">已保存的实际到场（美东）</div><div class="arrival-value">${esc(arrivalTimeText(a.actual_arrival_et))}</div></div>
+    <div><div class="arrival-label">约定到场（美东）</div><div class="arrival-value">${esc(a.scheduled_arrival_et ? arrivalTimeText(a.scheduled_arrival_et) : "约定时间待确认")}</div></div>
+    <div><div class="arrival-label">到场项评分</div><div class="arrival-value">${esc(score + (a.score == null ? "" : late))}</div></div>
+  </div>${a.schedule_source ? `<p class="arrival-help">约定时间来源：${esc(a.schedule_source)}</p>` : ""}
+  ${a.updated_at_et ? `<p class="arrival-help">最近修改：${esc(arrivalTimeText(a.updated_at_et))} 美东</p>` : ""}`;
+}
+function arrivalPanel() {
+  const a = arrivalEditor.record;
+  if (a.eligible === false) return '<section class="arrival-panel"><h3>司机实际到场（美东）</h3><p class="arrival-help">此路段不涉及 BWI，无需填写 BWI 到场记录。</p></section>';
+  const value = arrivalDrafts.has(arrivalEditor.id) ? arrivalDrafts.get(arrivalEditor.id) : arrivalInputValue(a.actual_arrival_et);
+  return `<section class="arrival-panel" aria-labelledby="arrivalTitle">
+    <h3 id="arrivalTitle">司机实际到场（美东）</h3>
+    <p class="arrival-help" id="arrivalHelp">填写司机实际到达 BWI 的日期和时间。同一任务在 BWI 的相关路段共享此记录。到场项评分仅比较约定与实际到场时间。</p>
+    <div id="arrivalSaved">${arrivalSummary(a)}</div>
+    <p class="arrival-help" id="arrivalReadonly" hidden>当前为只读模式，可查看已保存记录，不能修改。</p>
+    <p class="arrival-help" id="arrivalAuth" hidden>保存或清除时需要管理员口令。</p>
+    <form id="arrivalForm" class="arrival-controls">
+      <label class="arrival-input-label" for="arrivalInput">司机实际到场（美东）
+        <input class="arrival-input" id="arrivalInput" type="datetime-local" step="60" required value="${esc(value)}" aria-describedby="arrivalHelp arrivalFeedback">
+      </label>
+      <button class="arrival-action primary" id="arrivalSave" type="submit">${a.actual_arrival_et ? "保存修改" : "保存到场时间"}</button>
+      <button class="arrival-action" id="arrivalClear" type="button">清除记录</button>
+      <button class="arrival-action" id="arrivalReload" type="button" hidden>重新读取最新记录</button>
+    </form>
+    <p id="arrivalFeedback" class="arrival-feedback" role="status" aria-live="polite"></p>
+  </section>`;
+}
+function arrivalMessage(text, kind = "") {
+  const el = $("arrivalFeedback"); if (!el) return;
+  el.textContent = text; el.className = "arrival-feedback " + kind;
+}
+function syncArrivalControls() {
+  if (!arrivalEditor || !$("arrivalInput")) return;
+  const locked = !!arrivalSettings().readonly, busy = arrivalPending.has(arrivalEditor.id) || arrivalEditor.reloading;
+  $("arrivalInput").disabled = locked || busy;
+  $("arrivalSave").disabled = locked || busy || arrivalEditor.conflict;
+  $("arrivalClear").disabled = locked || busy || arrivalEditor.conflict || !arrivalEditor.record.actual_arrival_et;
+  $("arrivalReload").disabled = busy;
+  $("arrivalReload").hidden = !arrivalEditor.conflict;
+  $("arrivalReadonly").hidden = !locked;
+  $("arrivalAuth").hidden = locked || !arrivalSettings().admin_token_required;
+  $("arrivalSave").textContent = arrivalPending.has(arrivalEditor.id) ? "保存中…" : arrivalEditor.record.actual_arrival_et ? "保存修改" : "保存到场时间";
+}
+function bindArrivalEditor() {
+  if (!$("arrivalInput")) return;
+  $("arrivalInput").addEventListener("input", () => { arrivalDrafts.set(arrivalEditor.id, $("arrivalInput").value); });
+  $("arrivalForm").addEventListener("submit", (event) => { event.preventDefault(); saveArrival(false); });
+  $("arrivalClear").addEventListener("click", () => saveArrival(true));
+  $("arrivalReload").addEventListener("click", reloadArrival);
+  syncArrivalControls();
+}
+async function saveArrival(clear) {
+  const editor = arrivalEditor;
+  if (!editor || editor.record.eligible === false || arrivalSettings().readonly || editor.conflict || arrivalPending.has(editor.id)) return;
+  const input = $("arrivalInput"), value = input.value;
+  if (!clear && !input.reportValidity()) return;
+  if (clear && !confirm(`确定清除已保存的司机实际到场时间 ${arrivalTimeText(editor.record.actual_arrival_et)}（美东）？\n清除后，此任务的到场项评分会恢复为待填写。`)) return;
+  const headers = {"Content-Type": "application/json"};
+  if (arrivalSettings().admin_token_required) {
+    const token = prompt("管理员口令：");
+    if (!token) { arrivalMessage("未输入管理员口令，尚未保存。输入已保留。"); return; }
+    headers["X-Admin-Token"] = token;
+  }
+  arrivalDrafts.set(editor.id, value);
+  arrivalPending.add(editor.id); syncArrivalControls(); arrivalMessage(clear ? "正在清除…" : "正在保存…");
+  try {
+    const response = await fetch(`/api/driver-arrival/${editor.id}`, {method: "POST", headers,
+      body: JSON.stringify({actual_arrival_et: clear ? null : value, version: editor.record.version ?? 0})});
+    const data = await response.json().catch(() => ({}));
+    if (arrivalEditor !== editor) return;
+    if (response.status === 409) {
+      editor.conflict = true;
+      arrivalMessage("这条记录已被其他操作更新，未覆盖。输入已保留；请先重新读取最新记录，核对后再保存。", "error");
+      return;
+    }
+    if (!response.ok) throw new Error(data.error || `保存失败（${response.status}）`);
+    if (!data.driver_arrival) throw new Error("服务未返回保存结果，请重新打开详情核实。输入已保留。");
+    editor.record = data.driver_arrival;
+    arrivalDrafts.delete(editor.id);
+    input.value = arrivalInputValue(editor.record.actual_arrival_et);
+    $("arrivalSaved").innerHTML = arrivalSummary(editor.record);
+    arrivalMessage(clear ? "已清除实际到场记录。" : "实际到场时间已保存。", "success");
+    await load();
+  } catch (error) {
+    if (arrivalEditor === editor) arrivalMessage(`${error.message || "无法连接服务"} 输入已保留，请核实后重试。`, "error");
+  } finally {
+    arrivalPending.delete(editor.id);
+    syncArrivalControls();
+  }
+}
+async function reloadArrival() {
+  const editor = arrivalEditor;
+  if (!editor || editor.reloading || arrivalPending.has(editor.id)) return;
+  editor.reloading = true; syncArrivalControls(); arrivalMessage("正在读取最新记录…");
+  try {
+    const response = await fetch(`/api/segment/${editor.id}`, {cache: "no-store"});
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "读取失败");
+    if (arrivalEditor !== editor) return;
+    editor.record = data.driver_arrival || {actual_arrival_et: null, version: 0, status: "unrecorded"};
+    editor.settings = data.driver_arrival_settings || state?.driver_arrival_settings || {};
+    editor.conflict = false;
+    $("arrivalSaved").innerHTML = arrivalSummary(editor.record);
+    arrivalMessage("已读取最新记录。您的输入已保留，请与上方已保存时间核对后再保存。");
+  } catch (error) {
+    if (arrivalEditor === editor) arrivalMessage(`读取失败：${error.message}。输入已保留。`, "error");
+  } finally { editor.reloading = false; syncArrivalControls(); }
+}
+function refreshArrivalSettings() {
+  if (arrivalEditor && state?.driver_arrival_settings) arrivalEditor.settings = state.driver_arrival_settings;
+  syncArrivalControls();
+}
+
 async function showSegment(id) {
   if (!id || id === "0") return;
-  const d = await (await fetch("/api/segment/" + id)).json();
+  const request = ++segmentRequest;
+  let d;
+  try {
+    const response = await fetch("/api/segment/" + id, {cache: "no-store"});
+    d = await response.json();
+    if (!response.ok || !d.segment) throw new Error(d.error || "任务详情不存在");
+  } catch (error) {
+    if (request === segmentRequest) alert("无法读取任务详情：" + error.message);
+    return;
+  }
+  if (request !== segmentRequest) return;
+  const inDriverScope = d.driver_scoring_enabled ? d.driver_score?.in_scope === true : d.driver_arrival?.eligible !== false;
+  arrivalEditor = d.driver_arrival && inDriverScope ? {id: String(id), record: d.driver_arrival,
+    settings: d.driver_arrival_settings || state?.driver_arrival_settings || {}, conflict: false, reloading: false} : null;
   const seg = Object.entries(d.segment).map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("");
   const list = (rows, f) => rows.length ? rows.map(f).join("") : '<p class="muted">None</p>';
   $("detailBody").innerHTML = `
     <h2>${esc(d.segment.taskNo)} · ${esc(d.segment.placeOfOrigin)} → ${esc(d.segment.destination)}</h2>
+    ${arrivalEditor ? arrivalPanel() : ""}
+    ${d.driver_scoring_enabled && d.driver_score?.in_scope ? '<p><a href="/dashboard-v2#tab=scores">打开司机评分与导出，填写其他扣分或调整总分 →</a></p>' : ""}
     <dl>${seg}</dl>
     <h2>Current rule results</h2>
     ${list(d.findings, (f) => `<p><span class="pill ${f.stage}">${f.stage}</span> ${typeLabel(f.alert_type)} ·
@@ -322,7 +492,8 @@ async function showSegment(id) {
     <h2>Notifications</h2>
     ${list(d.notifications, (n) => `<p class="muted">${esc(n.at)} · ${esc(n.channel)} ${n.ok ? "" : "FAILED " + esc(n.error)}</p><pre>${esc(n.text)}</pre>`)}
     <p class="muted">${d.history_versions} stored versions of this segment.</p>`;
-  $("detail").showModal();
+  if (arrivalEditor) bindArrivalEditor();
+  if (!$("detail").open) $("detail").showModal();
 }
 
 async function shiftAction(action) {
@@ -352,6 +523,8 @@ async function shiftAction(action) {
 function alertBanner(text) { $("banners").insertAdjacentHTML("afterbegin", `<div class="banner bad">${esc(text)}</div>`); }
 
 document.addEventListener("click", async (e) => {
+  const arrivalOpen = e.target.closest("[data-arrival-open]");
+  if (arrivalOpen) { e.stopPropagation(); return showSegment(arrivalOpen.dataset.arrivalOpen); }
   const sa = e.target.dataset?.shift;
   if (sa) return shiftAction(sa);
   const ack = e.target.dataset?.ack;

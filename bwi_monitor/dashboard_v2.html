@@ -129,6 +129,44 @@
     th, td { padding: 6px 9px; font-size: 13px; }
     .tablewrap { max-height: 70vh; }
   }
+
+  .arrival-panel { border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin: 16px 0; background: var(--panel); }
+  .arrival-panel h3 { margin: 0 0 8px; font-size: 16px; }
+  .arrival-summary { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 12px 0; }
+  .arrival-summary > div { min-width: 150px; }
+  .arrival-label, .arrival-help { color: var(--muted); font-size: 12px; }
+  .arrival-value { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .arrival-controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; margin-top: 12px; }
+  .arrival-input-label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; }
+  .arrival-input { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; min-height: 38px; max-width: 100%; }
+  .arrival-action { font: inherit; font-size: 13px; border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; background: var(--panel); color: var(--text); cursor: pointer; }
+  .arrival-action.primary { background: var(--brand, var(--blue)); color: #fff; border-color: transparent; }
+  .arrival-action:disabled, .arrival-input:disabled { opacity: .5; cursor: not-allowed; }
+  .arrival-feedback { margin: 10px 0 0; font-size: 13px; white-space: pre-wrap; }
+  .arrival-feedback.error { color: var(--bad, var(--red)); }
+  .arrival-feedback.success { color: var(--ok, var(--green)); }
+  .arrival-cell { border: 0; padding: 2px 0; background: transparent; color: var(--brand-2, var(--blue)); text-align: left; cursor: pointer; font: inherit; font-size: 12px; }
+  .arrival-cell span { display: block; color: var(--muted); font-size: 11px; }
+  .arrival-cell:hover { text-decoration: underline; }
+  .arrival-panel [hidden] { display: none !important; }
+
+
+  .score-toolbar { display:flex; flex-wrap:wrap; align-items:end; gap:10px; padding:14px 16px; border-bottom:1px solid var(--line); }
+  .score-toolbar label, .score-field { display:flex; flex-direction:column; gap:5px; font-size:13px; color:var(--muted); }
+  .score-toolbar input, .score-toolbar select, .score-field input, .score-field select, .score-field textarea { background:var(--panel); color:var(--text); border:1px solid var(--line); border-radius:6px; padding:7px 9px; font:inherit; max-width:100%; }
+  .score-toolbar .score-check, .score-check { display:flex; flex-direction:row; align-items:center; gap:7px; }
+  .score-note { margin:0; padding:10px 16px; color:var(--muted); font-size:13px; }
+  .score-note.error { color:var(--bad); } .score-note.success { color:var(--ok); }
+  .score-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:14px 0; }
+  .score-wide { grid-column:1/-1; }
+  .score-review summary { cursor:pointer; font-weight:600; padding:10px 0; }
+  .score-saved { margin:8px 0; color:var(--muted); font-size:13px; overflow-wrap:anywhere; }
+  .score-total { font-size:22px; font-weight:700; color:var(--brand); }
+  .score-source { font-size:12px; color:var(--muted); white-space:normal; min-width:140px; }
+  #driverTotalDialog { width:min(540px,94vw); }
+  #driverTotalDialog h2 { margin-top:0; }
+  .maintabs { flex-wrap:wrap; }
+  @media (max-width:760px) { .score-form-grid { grid-template-columns:1fr; } .score-toolbar { align-items:stretch; } .score-toolbar label { flex:1 1 130px; } }
 </style>
 </head>
 <body>
@@ -140,7 +178,7 @@
       <input id="q" class="search" type="search" placeholder="搜索 任务编号 / 车牌 / 线路" aria-label="搜索">
       <button class="btn start" id="btnStart" data-shift="start">上班 Start Shift</button>
       <button class="btn end" id="btnEnd" data-shift="end">下班 End Shift</button>
-      <label class="toggle"><input id="sound" type="checkbox"> 声音提醒</label>
+      <label class="toggle" for="sound"><input id="sound" type="checkbox"> 声音提醒</label>
     </div>
   </div>
 </header>
@@ -154,6 +192,7 @@
     <button data-main="recv">📦 收车</button>
     <button data-main="send">🚛 发车</button>
     <button data-main="alert">⚠️ 异常预警</button>
+    <button data-main="scores" hidden>司机评分与导出</button>
   </nav>
 
   <!-- 收车 -->
@@ -201,12 +240,38 @@
     <div class="small" style="padding: 0 16px 12px">“关闭”需填写姓名和原因，记录永久保留；标为“保留”的告警（发车超时、卸车首枪超时、TMS 操作缺失）不能手工关闭，TMS 出现对应操作后自动结束。确认查看只表示已看到。</div>
   </section>
 
+
+  <section class="box" id="tab-scores" hidden aria-labelledby="scoreTitle">
+    <div class="box-head"><div><h2 id="scoreTitle">司机评分与导出</h2><div class="sub">仅 BWI.H 始发任务的首段：BWI.H → ORF01 / RIC01 / DCA01 / IAD01</div></div>
+      <button class="btn plain" id="driverSync" type="button">同步 TMS 司机</button></div>
+    <p class="score-note">每趟任务以 100 分开始：迟到扣 45 分；回货未完成扣 25 分、部分完成扣 10 分；再减人工扣分，最低 0 分；跑错线路直接 0 分。线路正常时，到场缺失或约定待确认会保留待评。</p>
+    <p class="score-note">近 30 天评分仅统计本站登记且资料完整的任务，按已评分任务求平均；人工总分可覆盖显示值。历史回填不作为实际到场。</p>
+    <p id="driverSyncStatus" class="score-note" role="status"></p>
+    <form id="driverFilters" class="score-toolbar">
+      <label for="driverStart">任务开始日期<input id="driverStart" type="date"></label>
+      <label for="driverEnd">任务结束日期<input id="driverEnd" type="date"></label>
+      <label for="driverRoute">线路<select id="driverRoute"><option value="">四条支线</option><option value="ORF01">ORF01</option><option value="RIC01">RIC01</option><option value="DCA01">DCA01</option><option value="IAD01">IAD01</option></select></label>
+      <button class="btn plain" type="submit">筛选任务</button><button class="btn plain" id="driverReset" type="button">最近 30 天</button>
+      <button class="btn plain" id="driverExport" type="button">导出 Excel</button>
+      <label class="score-check" for="driverExportPhone"><input id="driverExportPhone" type="checkbox">导出含电话</label>
+    </form>
+    <p class="score-note">Excel 使用已应用的任务日期与线路筛选；顶部搜索只筛选页面显示，不影响导出范围。默认不导出电话。</p>
+    <p id="driverMessage" class="score-note" role="status" aria-live="polite"></p>
+    <h3 class="subhead">任务评分 <span class="small" id="driverTaskWindow"></span></h3>
+    <div class="tablewrap"><table id="driverTaskTable"></table></div><div class="more" id="driverTaskMore"></div>
+    <h3 class="subhead">司机近 30 天汇总 <span class="small" id="driverScoreWindow"></span></h3>
+    <p class="score-note">任务筛选决定展示哪些司机；每位司机的均分始终使用上方标示的近 30 天窗口。身份资料未同步完整的任务不并入司机总分。</p>
+    <div class="tablewrap"><table id="driverSummaryTable"></table></div>
+  </section>
+
   <footer class="small" style="padding: 4px 4px 16px">
     内部预警规则 · 非 TMS 官方 KPI 统计。时间按 10 分钟一次的 TMS 数据判断（“根据 TMS 记录”）。已作废（taskStatus 6）任务不参与监控。倒计时只在页面显示，不会触发通知。
   </footer>
 </main>
 
 <dialog id="detail"><div id="detailBody"></div><p><button class="btn plain" onclick="detail.close()">关闭</button></p></dialog>
+
+<dialog id="driverTotalDialog"><div id="driverTotalBody"></div><p><button class="btn plain" type="button" onclick="document.getElementById('driverTotalDialog').close()">关闭</button></p></dialog>
 
 <script>
 const $ = (id) => document.getElementById(id);
@@ -218,7 +283,7 @@ const ui = {dep: ls.get("dep-filter") || "all", unl: ls.get("unl-filter") || "ac
             main: ls.get("main-tab") || "send", origin: ls.get("origin-tab") || "today", send: ls.get("send-tab") || "bwi",
             depAll: false, unlAll: false, alertAll: false, comingAll: false, arrivedAll: false, sort: {}};
 const PAGE = 15;
-{ const m = location.hash.match(/tab=(recv|send|alert)/); if (m) ui.main = m[1];  // direct link to a tab
+{ const m = location.hash.match(/tab=(recv|send|alert|scores)/); if (m) ui.main = m[1];  // direct link to a tab
   const o = location.hash.match(/origin=([\w.]+)/); if (o) ui.origin = o[1]; }
 
 /* ---- time helpers (display only; deadlines come from the backend) ---- */
@@ -246,13 +311,13 @@ function countdown(deadlineIso, done) {
 const searching = () => $("q").value.trim();
 function matches(r) {
   const q = $("q").value.trim().toLowerCase();
-  return !q || [r.taskNo, r.licensePlateNo, r.route, r.placeOfOrigin, r.destination, r.alert_type]
+  return !q || [r.taskNo, r.licensePlateNo, r.route, r.placeOfOrigin, r.destination, r.alert_type, r.name, r.driver_name, r.supplier]
     .some((v) => String(v ?? "").toLowerCase().includes(q));
 }
 function render(tableId, moreId, cols, rows, opt) {
   const key = tableId, sort = ui.sort[key];
   rows = rows.filter(matches);
-  if (sort) {
+  if (sort && cols.some((c) => c.k === sort.k)) {
     const c = cols.find((x) => x.k === sort.k);
     rows = [...rows].sort((a, b) => { const x = c.sv ? c.sv(a) : a[c.k], y = c.sv ? c.sv(b) : b[c.k];
       return (x == null) - (y == null) || (x < y ? -1 : x > y ? 1 : 0) * sort.dir; });
@@ -342,6 +407,7 @@ function renderDepartures(s) {
     {h: "线路", k: "route", f: (r) => `<span class="route">${esc(r.route)}</span>`},
     {h: "任务编号", k: "taskNo", f: (r) => `<span class="mono">${esc(r.taskNo)}</span>`},
     {h: "车牌号", k: "licensePlateNo", f: (r) => esc(r.licensePlateNo)},
+    ...(s.driver_arrival_enabled && ui.send === "bwi" ? [{h: "司机实际到场（美东）", k: "driver_arrival", sv: (r) => r.driver_arrival?.actual_arrival_et || null, f: arrivalCell}] : []),
     {h: "规定发车时间 (ET)", k: "deadline", f: (r) => `<b class="mono">${md(r.deadline_et)}</b>`},
     {h: "TMS计划时间 (ET)", k: "tms_planned_et", f: (r) => `<span class="mono">${md(r.tms_planned_et)}</span>` +
        (r.discrepancy_min ? ` <span class="small">(${r.discrepancy_min > 0 ? "+" : ""}${r.discrepancy_min}分)</span>` : "")},
@@ -421,13 +487,15 @@ function renderReceiving(s) {
 }
 
 function renderMainTabs(s) {
+  if (ui.main === "scores" && !s.driver_scoring_enabled) ui.main = "send";
   const nAlert = s.system.length + s.time_alerts.length + s.compliance_alerts.length;
   document.querySelectorAll("#mainTabs button").forEach((b) => {
+    b.hidden = b.dataset.main === "scores" && !s.driver_scoring_enabled;
     b.classList.toggle("on", b.dataset.main === ui.main);
-    const base = {recv: "📦 收车", send: "🚛 发车", alert: "⚠️ 异常预警"}[b.dataset.main];
+    const base = {recv: "📦 收车", send: "🚛 发车", alert: "⚠️ 异常预警", scores: "司机评分与导出"}[b.dataset.main];
     b.innerHTML = base + (b.dataset.main === "alert" && nAlert ? `<span class="n">${nAlert}</span>` : "");
   });
-  ["recv", "send", "alert"].forEach((k) => { $("tab-" + k).hidden = ui.main !== k; });
+  ["recv", "send", "alert", "scores"].forEach((k) => { $("tab-" + k).hidden = ui.main !== k; });
 }
 
 /* ---- E: alerts ---- */
@@ -508,12 +576,15 @@ function renderAll() {
   $("searchbar").innerHTML = q ? `🔍 搜索中：“${esc(q)}” — 下方所有表格与筛选数量只显示匹配的记录。 <button class="btn plain" data-clear="1">清除搜索</button>` : "";
   renderHeader(state); renderCards(state.cards); renderMainTabs(state);
   renderReceiving(state); renderDepartures(state); renderAlerts(state);
+  if (state.driver_scoring_enabled) renderDrivers();
+  syncScoreControls(); syncTotalControls();
 }
 async function load() {
   try {
     const s = await (await fetch("/api/state", {cache: "no-store"})).json();
     if (s.now_iso) clockOffset = new Date(s.now_iso).getTime() - Date.now();
-    state = s; renderAll(); soundCheck(s);
+    state = s; renderAll(); soundCheck(s); refreshArrivalSettings();
+    if (state.driver_scoring_enabled && ui.main === "scores") loadDrivers();
   } catch (e) {
     $("banners").innerHTML = `<div class="banner bad">⚠ 无法连接监控服务，页面数据可能已过期。</div>`;
   }
@@ -524,17 +595,434 @@ setInterval(() => {  // smooth countdowns from backend deadlines; display only, 
     el.textContent = left < 0 ? "已过预计 " + hhmmss(left) : hhmmss(left); el.className = "cd " + (left < 0 ? "bad" : "ok"); });
 }, 1000);
 
+
+/* Driver arrival is entered by dispatch; it never substitutes a TMS timestamp. */
+let arrivalEditor = null, segmentRequest = 0;
+const arrivalDrafts = new Map(), arrivalPending = new Set();
+const arrivalInputValue = (value) => value ? String(value).replace(" ", "T").slice(0, 16) : "";
+const arrivalTimeText = (value) => value ? String(value).replace("T", " ").slice(0, 16) : "未填写";
+const arrivalStatusText = (a) => ({unrecorded: "未填写实际到场", pending_schedule: "约定时间待确认", on_time: "准时到场", late: "迟到"})[a?.status] || "待核实";
+function arrivalCell(row) {
+  const a = row.driver_arrival || {status: "unrecorded"};
+  if (a.eligible === false || row.driver_score?.in_scope === false) return '<span class="arrival-help">—</span>';
+  const time = arrivalTimeText(a.actual_arrival_et);
+  const sub = a.score == null ? arrivalStatusText(a) : `到场项 ${a.score} 分 · ${arrivalStatusText(a)}`;
+  return `<button type="button" class="arrival-cell" data-arrival-open="${esc(row.segment_id)}" aria-label="查看或填写司机实际到场（美东）">${esc(time)}<span>${esc(sub)}</span></button>`;
+}
+function arrivalSettings() { return arrivalEditor?.settings || state?.driver_arrival_settings || {}; }
+function arrivalSummary(a) {
+  const score = a.score == null ? (a.actual_arrival_et ? "待确认约定时间" : "待填写实际到场") : `${a.score} 分`;
+  const late = a.late_minutes == null ? "" : a.late_minutes > 0 ? ` · 迟到 ${a.late_minutes} 分钟` : a.late_minutes < 0 ? ` · 提前 ${-a.late_minutes} 分钟` : " · 准时";
+  return `<div class="arrival-summary">
+    <div><div class="arrival-label">已保存的实际到场（美东）</div><div class="arrival-value">${esc(arrivalTimeText(a.actual_arrival_et))}</div></div>
+    <div><div class="arrival-label">约定到场（美东）</div><div class="arrival-value">${esc(a.scheduled_arrival_et ? arrivalTimeText(a.scheduled_arrival_et) : "约定时间待确认")}</div></div>
+    <div><div class="arrival-label">到场项评分</div><div class="arrival-value">${esc(score + (a.score == null ? "" : late))}</div></div>
+  </div>${a.schedule_source ? `<p class="arrival-help">约定时间来源：${esc(a.schedule_source)}</p>` : ""}
+  ${a.updated_at_et ? `<p class="arrival-help">最近修改：${esc(arrivalTimeText(a.updated_at_et))} 美东</p>` : ""}`;
+}
+function arrivalPanel() {
+  const a = arrivalEditor.record;
+  if (a.eligible === false) return '<section class="arrival-panel"><h3>司机实际到场（美东）</h3><p class="arrival-help">此路段不涉及 BWI，无需填写 BWI 到场记录。</p></section>';
+  const value = arrivalDrafts.has(arrivalEditor.id) ? arrivalDrafts.get(arrivalEditor.id) : arrivalInputValue(a.actual_arrival_et);
+  return `<section class="arrival-panel" aria-labelledby="arrivalTitle">
+    <h3 id="arrivalTitle">司机实际到场（美东）</h3>
+    <p class="arrival-help" id="arrivalHelp">填写司机实际到达 BWI 的日期和时间。仅用于 BWI 始发的 ORF、RIC、DCA、IAD 四支线；到场项按旧约定时间计算。</p>
+    <div id="arrivalSaved">${arrivalSummary(a)}</div>
+    <p class="arrival-help" id="arrivalReadonly" hidden>当前为只读模式，可查看已保存记录，不能修改。</p>
+    <p class="arrival-help" id="arrivalAuth" hidden>保存或清除时需要管理员口令。</p>
+    <form id="arrivalForm" class="arrival-controls">
+      <label class="arrival-input-label" for="arrivalInput">司机实际到场（美东）
+        <input class="arrival-input" id="arrivalInput" type="datetime-local" step="60" required value="${esc(value)}" aria-describedby="arrivalHelp arrivalFeedback">
+      </label>
+      <button class="arrival-action primary" id="arrivalSave" type="submit">${a.actual_arrival_et ? "保存修改" : "保存到场时间"}</button>
+      <button class="arrival-action" id="arrivalClear" type="button">清除记录</button>
+      <button class="arrival-action" id="arrivalReload" type="button" hidden>重新读取最新记录</button>
+    </form>
+    <p id="arrivalFeedback" class="arrival-feedback" role="status" aria-live="polite"></p>
+  </section>`;
+}
+function arrivalMessage(text, kind = "") {
+  const el = $("arrivalFeedback"); if (!el) return;
+  el.textContent = text; el.className = "arrival-feedback " + kind;
+}
+function syncArrivalControls() {
+  if (!arrivalEditor || !$("arrivalInput")) return;
+  const locked = !!arrivalSettings().readonly, busy = arrivalPending.has(arrivalEditor.id) || arrivalEditor.reloading;
+  $("arrivalInput").disabled = locked || busy;
+  $("arrivalSave").disabled = locked || busy || arrivalEditor.conflict;
+  $("arrivalClear").disabled = locked || busy || arrivalEditor.conflict || !arrivalEditor.record.actual_arrival_et;
+  $("arrivalReload").disabled = busy;
+  $("arrivalReload").hidden = !arrivalEditor.conflict;
+  $("arrivalReadonly").hidden = !locked;
+  $("arrivalAuth").hidden = locked || !arrivalSettings().admin_token_required;
+  $("arrivalSave").textContent = arrivalPending.has(arrivalEditor.id) ? "保存中…" : arrivalEditor.record.actual_arrival_et ? "保存修改" : "保存到场时间";
+}
+function bindArrivalEditor() {
+  if (!$("arrivalInput")) return;
+  $("arrivalInput").addEventListener("input", () => { arrivalDrafts.set(arrivalEditor.id, $("arrivalInput").value); });
+  $("arrivalForm").addEventListener("submit", (event) => { event.preventDefault(); saveArrival(false); });
+  $("arrivalClear").addEventListener("click", () => saveArrival(true));
+  $("arrivalReload").addEventListener("click", reloadArrival);
+  syncArrivalControls();
+}
+async function saveArrival(clear) {
+  const editor = arrivalEditor;
+  if (!editor || editor.record.eligible === false || arrivalSettings().readonly || editor.conflict || arrivalPending.has(editor.id)) return;
+  const input = $("arrivalInput"), value = input.value;
+  if (!clear && !input.reportValidity()) return;
+  if (clear && !confirm(`确定清除已保存的司机实际到场时间 ${arrivalTimeText(editor.record.actual_arrival_et)}（美东）？\n清除后，此任务的到场项评分会恢复为待填写。`)) return;
+  const headers = {"Content-Type": "application/json"};
+  if (arrivalSettings().admin_token_required) {
+    const token = prompt("管理员口令：");
+    if (!token) { arrivalMessage("未输入管理员口令，尚未保存。输入已保留。"); return; }
+    headers["X-Admin-Token"] = token;
+  }
+  arrivalDrafts.set(editor.id, value);
+  arrivalPending.add(editor.id); syncArrivalControls(); arrivalMessage(clear ? "正在清除…" : "正在保存…");
+  try {
+    const response = await fetch(`/api/driver-arrival/${editor.id}`, {method: "POST", headers,
+      body: JSON.stringify({actual_arrival_et: clear ? null : value, version: editor.record.version ?? 0})});
+    const data = await response.json().catch(() => ({}));
+    if (arrivalEditor !== editor) return;
+    if (response.status === 409) {
+      editor.conflict = true;
+      arrivalMessage("这条记录已被其他操作更新，未覆盖。输入已保留；请先重新读取最新记录，核对后再保存。", "error");
+      return;
+    }
+    if (!response.ok) throw new Error(data.error || `保存失败（${response.status}）`);
+    if (!data.driver_arrival) throw new Error("服务未返回保存结果，请重新打开详情核实。输入已保留。");
+    editor.record = data.driver_arrival;
+    arrivalDrafts.delete(editor.id);
+    input.value = arrivalInputValue(editor.record.actual_arrival_et);
+    $("arrivalSaved").innerHTML = arrivalSummary(editor.record);
+    arrivalMessage(clear ? "已清除实际到场记录。" : "实际到场时间已保存。", "success");
+    await load();
+    await refreshTaskScoreAfterArrival(editor.id, data.driver_score);
+  } catch (error) {
+    if (arrivalEditor === editor) arrivalMessage(`${error.message || "无法连接服务"} 输入已保留，请核实后重试。`, "error");
+  } finally {
+    arrivalPending.delete(editor.id);
+    syncArrivalControls();
+  }
+}
+async function reloadArrival() {
+  const editor = arrivalEditor;
+  if (!editor || editor.reloading || arrivalPending.has(editor.id)) return;
+  editor.reloading = true; syncArrivalControls(); arrivalMessage("正在读取最新记录…");
+  try {
+    const response = await fetch(`/api/segment/${editor.id}`, {cache: "no-store"});
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "读取失败");
+    if (arrivalEditor !== editor) return;
+    editor.record = data.driver_arrival || {actual_arrival_et: null, version: 0, status: "unrecorded"};
+    editor.settings = data.driver_arrival_settings || state?.driver_arrival_settings || {};
+    editor.conflict = false;
+    $("arrivalSaved").innerHTML = arrivalSummary(editor.record);
+    arrivalMessage("已读取最新记录。您的输入已保留，请与上方已保存时间核对后再保存。");
+  } catch (error) {
+    if (arrivalEditor === editor) arrivalMessage(`读取失败：${error.message}。输入已保留。`, "error");
+  } finally { editor.reloading = false; syncArrivalControls(); }
+}
+function refreshArrivalSettings() {
+  if (arrivalEditor && state?.driver_arrival_settings) arrivalEditor.settings = state.driver_arrival_settings;
+  syncArrivalControls();
+}
+
+
+/* ---- Driver scoring: separate drafts, server-owned scores, explicit scope ---- */
+let driversData = null, driversQuery = "", driversRequest = 0, driversLoading = false, driversFilterInitialized = false;
+let syncPosting = false, exportBusy = false, scoreEditor = null, totalEditor = null;
+const scoreDrafts = new Map(), scorePending = new Set(), totalDrafts = new Map(), totalPending = new Set();
+const RETURN_STATUS = {not_required:"无需回货", completed:"已完成", partial:"部分完成（扣10分）", failed:"未完成（扣25分）", pending:"需要回货，结果待确认"};
+const scoreNumber = (value) => value == null ? "待评" : `${value} 分`;
+const scoringSettings = () => state?.driver_arrival_settings || driversData?.settings || {};
+const driverName = (row) => row.driver_key ? (row.name || row.driver_name || "司机待同步") : "司机待同步";
+function driverMessage(text, kind = "") { $("driverMessage").textContent = text; $("driverMessage").className = "score-note " + kind; }
+function scoreMessage(text, kind = "") { const el = $("scoreFeedback"); if (el) { el.textContent = text; el.className = "arrival-feedback " + kind; } }
+function totalMessage(text, kind = "") { const el = $("totalFeedback"); if (el) { el.textContent = text; el.className = "arrival-feedback " + kind; } }
+function driverHeaders(json = true) {
+  const headers = json ? {"Content-Type":"application/json"} : {};
+  if (scoringSettings().admin_token_required) {
+    const token = prompt("管理员口令：");
+    if (!token) throw new Error("未输入管理员口令，操作未提交。");
+    headers["X-Admin-Token"] = token;
+  }
+  return headers;
+}
+function driverParams(filter) {
+  const query = new URLSearchParams();
+  for (const key of ["start", "end", "route"]) if (filter?.[key]) query.set(key, filter[key]);
+  return query.toString();
+}
+async function loadDrivers() {
+  if (!state?.driver_scoring_enabled) return;
+  const request = ++driversRequest, query = driversQuery;
+  driversLoading = true; driverMessage("正在读取司机评分…");
+  try {
+    const response = await fetch("/api/drivers" + (query ? "?" + query : ""), {cache:"no-store"});
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "无法读取司机评分");
+    if (request !== driversRequest) return;
+    driversData = data; driversQuery = driverParams(data.filter || {});
+    if (!driversFilterInitialized) {
+      $("driverStart").value = data.filter?.start || ""; $("driverEnd").value = data.filter?.end || "";
+      $("driverRoute").value = data.filter?.route || ""; driversFilterInitialized = true;
+    }
+    renderDrivers(); driverMessage(scoringSettings().readonly ? "当前为只读模式，可查看与导出，不能修改评分或同步司机。" : "");
+  } catch (error) { if (request === driversRequest) driverMessage("读取失败：" + error.message + "。已显示的数据可能未更新。", "error"); }
+  finally { if (request === driversRequest) { driversLoading = false; syncDriverActions(); } }
+}
+function syncDriverActions() {
+  const locked = !!scoringSettings().readonly;
+  $("driverSync").disabled = locked || syncPosting || !!driversData?.sync?.running;
+  $("driverSync").textContent = syncPosting || driversData?.sync?.running ? "正在同步 TMS 司机…" : "同步 TMS 司机";
+  $("driverExport").disabled = exportBusy || !driversData || driversLoading;
+  $("driverExport").textContent = exportBusy ? "正在生成 Excel…" : "导出 Excel";
+}
+function renderDrivers() {
+  syncDriverActions();
+  if (!driversData) return;
+  const data = driversData, sync = data.sync || {};
+  $("driverSyncStatus").textContent = sync.running ? "TMS 司机资料同步中，可继续查看现有任务。" :
+    [sync.last_success_et ? "上次同步成功：" + arrivalTimeText(sync.last_success_et) + " 美东" : "尚无同步成功记录", sync.error ? "同步提示：" + sync.error : ""].filter(Boolean).join(" · ");
+  $("driverSyncStatus").className = "score-note" + (sync.error ? " error" : "");
+  $("driverTaskWindow").textContent = [data.filter?.start, data.filter?.end].filter(Boolean).join(" 至 ") + (data.filter?.route ? " · " + data.filter.route : " · 四条支线");
+  $("driverScoreWindow").textContent = [data.window_start, data.window_end].filter(Boolean).join(" 至 ");
+  const tasks = (data.tasks || []).map(t => ({...t, taskNo:t.task_no, licensePlateNo:t.plate, driver_name:driverName(t)}));
+  render("driverTaskTable", "driverTaskMore", [
+    {h:"任务日期",k:"op_date",f:t=>esc(t.op_date)}, {h:"线路",k:"route",f:t=>esc(t.route || t.destination)},
+    {h:"司机",k:"driver_name",f:t=>`<b>${esc(driverName(t))}</b><div class="small">${esc(t.supplier || "")}</div>`},
+    {h:"TMS资料来源",k:"source",sort:false,f:t=>`<span class="score-source">${esc(t.profile?.source || "TMS资料待同步")}${t.driver_key ? "" : " · 身份资料待完整"}</span>`},
+    {h:"MT任务",k:"taskNo",f:t=>`<span class="mono">${esc(t.task_no)}</span>`},
+    {h:"实际到场（美东）",k:"actual_arrival_et",f:t=>esc(arrivalTimeText(t.actual_arrival_et || t.arrival?.actual_arrival_et))},
+    {h:"任务评分",k:"score",f:t=>`<b>${esc(scoreNumber(t.score))}</b>${t.pending_reasons?.length ? `<div class="score-source">${t.score == null ? "待评：" : "待补充："}${esc(t.pending_reasons.join("；"))}</div>` : ""}`},
+    {h:"",k:"action",sort:false,f:t=>`<button class="btn plain" type="button" data-score-task="${esc(t.segment_id)}">查看 / 修改</button> <button class="btn plain" type="button" data-driver-print="${esc(t.segment_id)}">打印 Check-in</button>`},
+  ], tasks, {all:ui.scoreAll,flag:"scoreAll",empty:"当前范围没有符合条件的四支线任务"});
+  const q = searching().toLowerCase();
+  const drivers = (data.drivers || []).filter(d => !q || [d.name,d.phone,d.supplier,...(d.task_nos || [])].some(v=>String(v || "").toLowerCase().includes(q)));
+  $("driverSummaryTable").innerHTML = `<thead><tr>${["司机","供应商","自动均分","人工总分","当前总分","已评分 / 待评任务",""].map(h=>`<th>${h}</th>`).join("")}</tr></thead><tbody>` +
+    (drivers.length ? drivers.map(d=>`<tr><td><b>${esc(driverName(d))}</b></td><td>${esc(d.supplier || "—")}</td><td>${esc(scoreNumber(d.auto_score))}</td>
+      <td>${d.manual_score == null ? "未设置" : esc(scoreNumber(d.manual_score))}</td><td><b>${esc(scoreNumber(d.score))}</b></td>
+      <td>${esc(d.scored_task_count || 0)} / ${esc(d.pending_task_count || 0)}</td><td>${d.driver_key ? `<button class="btn plain" type="button" data-driver-total="${esc(d.driver_key)}">${scoringSettings().readonly ? "查看总分" : "调整总分"}</button>` : "身份待确认"}</td></tr>`).join("") : '<tr><td colspan="7" class="empty">近 30 天暂无资料完整的司机记录</td></tr>') + "</tbody>";
+}
+async function syncDrivers() {
+  if (scoringSettings().readonly || syncPosting || driversData?.sync?.running) return;
+  try {
+    const headers = driverHeaders(); syncPosting = true; syncDriverActions();
+    const response = await fetch("/api/driver-sync", {method:"POST",headers,body:"{}"});
+    const data = await response.json(); if (!response.ok) throw new Error(data.error || "同步未能开始");
+    if (driversData) driversData.sync = data.sync || {running:true};
+    driverMessage("已开始同步 TMS 司机资料，完成后列表会更新。", "success"); renderDrivers();
+  } catch(error) { driverMessage(error.message, "error"); }
+  finally { syncPosting = false; syncDriverActions(); }
+}
+async function printDriverCheckin(id) {
+  if (arrivalEditor?.id === String(id) && arrivalDrafts.has(String(id)) &&
+      arrivalDrafts.get(String(id)) !== arrivalInputValue(arrivalEditor.record.actual_arrival_et)) {
+    alert("到场时间有未保存的修改，请先保存或重新读取后再打印。"); return;
+  }
+  const preview = window.open("about:blank", "_blank");
+  if (!preview) { alert("请允许此看板打开打印窗口，再点击打印 Check-in。"); return; }
+  try {
+    const response = await fetch("/api/driver-checkin/" + encodeURIComponent(id) + ".html", {headers:driverHeaders(false),cache:"no-store"});
+    if (!response.ok) { const error = await response.json().catch(()=>({})); throw new Error(error.error || "打印页读取失败"); }
+    const url = URL.createObjectURL(await response.blob());
+    preview.location.replace(url); setTimeout(()=>URL.revokeObjectURL(url),60000);
+  } catch (error) { preview.close(); alert(error.message); }
+}
+async function exportDrivers() {
+  if (exportBusy || !driversData) return;
+  try {
+    const headers = driverHeaders(false), query = new URLSearchParams(driversQuery);
+    query.set("include_phone", $("driverExportPhone").checked ? "1" : "0");
+    exportBusy = true; syncDriverActions();
+    const response = await fetch("/api/driver-export.xlsx?" + query, {headers,cache:"no-store"});
+    if (!response.ok) { const error = await response.json().catch(()=>({})); throw new Error(error.error || "导出失败"); }
+    const blob = await response.blob(), url = URL.createObjectURL(blob), link = document.createElement("a");
+    const disposition = response.headers.get("Content-Disposition") || "";
+    let filename = "bwi-driver-scores.xlsx";
+    const plain = disposition.match(/filename="?([^";]+)"?/i); if (plain) filename = plain[1].replace(/[\\/]/g,"_");
+    link.href = url; link.download = filename; document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    driverMessage("Excel 已生成" + ($("driverExportPhone").checked ? "（包含电话）。" : "（不包含电话）。"), "success");
+  } catch(error) { driverMessage(error.message, "error"); }
+  finally { exportBusy = false; syncDriverActions(); }
+}
+function taskScoreSummary(task) {
+  const r = task.review || {}, d = task.deductions || {};
+  return `<div class="arrival-summary"><div><div class="arrival-label">本趟任务评分</div><div class="score-total">${esc(scoreNumber(task.score))}</div></div>
+    <div><div class="arrival-label">司机（TMS）</div><div class="arrival-value">${esc(driverName(task))}</div></div>
+    <div><div class="arrival-label">资料来源</div><div>${esc(task.profile?.source || "TMS资料待同步")}</div></div></div>
+    ${task.pending_reasons?.length ? `<p class="score-saved">${task.score == null ? "待评原因" : "仍待补充"}：${esc(task.pending_reasons.join("；"))}</p>` : ""}
+    <p class="score-saved">已保存：${r.route_ok === false ? "跑错线路，本趟0分" : "线路正常"} · ${esc(RETURN_STATUS[r.return_status || "not_required"] || "待确认")} · 人工扣分 ${esc(r.manual_deduction || 0)}${r.manual_reason ? "（" + esc(r.manual_reason) + "）" : ""}</p>
+    ${task.score != null && r.route_ok !== false ? `<p class="score-saved">扣分明细：迟到 ${esc(d.arrival || 0)} · 回货 ${esc(d.return || 0)} · 人工 ${esc(d.manual || 0)}</p>` : ""}`;
+}
+function taskScorePanel() {
+  const task = scoreEditor.record, r = scoreDrafts.get(task.task_no) || task.review || {};
+  return `<section class="arrival-panel"><h3>任务评分</h3><div id="taskScoreSaved">${taskScoreSummary(task)}</div>
+    <details class="score-review"><summary>其他扣分（发生时填写）</summary>
+    <p class="arrival-help">普通任务沿用默认值。只有发生路线错误、回货异常或其他需要扣分的情况时填写。</p>
+    <p class="arrival-help" id="scoreReadonly" hidden>当前为只读模式，不能修改扣分记录。</p>
+    <form id="taskScoreForm"><div class="score-form-grid">
+      <label class="score-check" for="scoreWrongRoute"><input id="scoreWrongRoute" type="checkbox" ${r.route_ok === false ? "checked" : ""}>跑错线路（本趟记 0 分）</label>
+      <label class="score-field" for="scoreReturn">回货结果<select id="scoreReturn">${Object.entries(RETURN_STATUS).map(([key,label])=>`<option value="${key}" ${key === (r.return_status || "not_required") ? "selected" : ""}>${label}</option>`).join("")}</select></label>
+      <label class="score-field" for="scoreManual">人工扣分（0–100）<input id="scoreManual" type="number" min="0" max="100" step="0.1" required value="${esc(r.manual_deduction ?? 0)}"></label>
+      <label class="score-field score-wide" for="scoreReason">人工扣分原因（有扣分时必填）<textarea id="scoreReason" rows="2">${esc(r.manual_reason || "")}</textarea></label>
+    </div><div class="arrival-controls"><button id="scoreSave" class="arrival-action primary" type="submit">保存扣分记录</button>
+    <button id="scoreReload" class="arrival-action" type="button" hidden>重新读取最新评分</button></div></form></details>
+    <p id="scoreFeedback" class="arrival-feedback" role="status" aria-live="polite"></p></section>`;
+}
+function scoreInput() { return {route_ok:!$("scoreWrongRoute").checked,return_status:$("scoreReturn").value,manual_deduction:$("scoreManual").value,manual_reason:$("scoreReason").value}; }
+function bindScoreEditor() {
+  $("taskScoreForm").addEventListener("input",()=>{scoreDrafts.set(scoreEditor.record.task_no,scoreInput());syncScoreControls();});
+  $("taskScoreForm").addEventListener("submit",event=>{event.preventDefault();saveTaskScore();});
+  $("scoreReload").addEventListener("click",reloadTaskScore); syncScoreControls();
+}
+function syncScoreControls() {
+  if (!scoreEditor || !$("taskScoreForm")) return;
+  const busy = scorePending.has(scoreEditor.record.task_no) || scoreEditor.reloading, locked = !!scoringSettings().readonly;
+  for (const id of ["scoreWrongRoute","scoreReturn","scoreManual","scoreReason"]) $(id).disabled = busy || locked;
+  $("scoreReason").required = Number($("scoreManual").value) > 0;
+  $("scoreSave").disabled = busy || locked || scoreEditor.conflict;
+  $("scoreSave").textContent = scorePending.has(scoreEditor.record.task_no) ? "保存中…" : "保存扣分记录";
+  $("scoreReload").hidden = !scoreEditor.conflict; $("scoreReload").disabled = busy; $("scoreReadonly").hidden = !locked;
+}
+async function saveTaskScore() {
+  const editor = scoreEditor, key = editor?.record.task_no;
+  if (!editor || scoringSettings().readonly || editor.conflict || scorePending.has(key) || editor.reloading) return;
+  if (!$("taskScoreForm").reportValidity()) return;
+  const draft = scoreInput();
+  if (Number(draft.manual_deduction)>0 && !draft.manual_reason.trim()) { scoreMessage("请填写人工扣分原因。", "error"); return; }
+  scoreDrafts.set(key,draft);
+  try {
+    const headers = driverHeaders(); scorePending.add(key);syncScoreControls();scoreMessage("正在保存…");
+    const response = await fetch(`/api/driver-score/${editor.id}`,{method:"POST",headers,body:JSON.stringify({...draft,manual_deduction:Number(draft.manual_deduction),manual_reason:draft.manual_reason.trim(),version:editor.record.review?.version ?? 0})});
+    const data = await response.json().catch(()=>({})); if (scoreEditor !== editor) return;
+    if (response.status===409) {editor.conflict=true;scoreMessage("评分记录已被其他操作更新，未覆盖。输入已保留，请重新读取后核对再保存。","error");return;}
+    if (!response.ok || !data.driver_score) throw new Error(data.error || "未收到保存结果，请重新读取核实");
+    editor.record=data.driver_score;scoreDrafts.delete(key);$("taskScoreSaved").innerHTML=taskScoreSummary(editor.record);
+    scoreMessage("扣分记录已保存，任务评分已更新。","success");await loadDrivers();
+  } catch(error) {if(scoreEditor===editor)scoreMessage(error.message+" 输入已保留。","error");}
+  finally {scorePending.delete(key);syncScoreControls();}
+}
+async function reloadTaskScore() {
+  const editor=scoreEditor;if(!editor||editor.reloading||scorePending.has(editor.record.task_no))return;
+  editor.reloading=true;syncScoreControls();scoreMessage("正在读取最新评分…");
+  try {
+    const response=await fetch(`/api/segment/${editor.id}`,{cache:"no-store"}),data=await response.json();
+    if(!response.ok||!data.driver_score?.in_scope)throw new Error(data.error||"此任务已不在评分范围");
+    if(scoreEditor!==editor)return;
+    editor.record=data.driver_score;editor.conflict=false;$("taskScoreSaved").innerHTML=taskScoreSummary(editor.record);
+    scoreMessage("已读取最新评分，您的输入已保留。请与已保存记录核对后再保存。");
+  }catch(error){if(scoreEditor===editor)scoreMessage(error.message+" 输入已保留。","error");}
+  finally{editor.reloading=false;syncScoreControls();}
+}
+async function refreshTaskScoreAfterArrival(id, savedScore) {
+  const editor=scoreEditor;if(!editor||editor.id!==String(id))return;
+  try {
+    let task=savedScore;
+    if(!task){const response=await fetch(`/api/segment/${id}`,{cache:"no-store"}),data=await response.json();if(!response.ok)return;task=data.driver_score;}
+    if(!task||scoreEditor!==editor)return;
+    const review=editor.record.review;
+    if((task.review?.version ?? 0)!==(review?.version ?? 0)){editor.conflict=true;scoreMessage("到场时间已保存；扣分记录另有更新，请重新读取评分后核对。","error");}
+    editor.record={...task,review};$("taskScoreSaved").innerHTML=taskScoreSummary(editor.record);syncScoreControls();
+  }catch(error){if(scoreEditor===editor)scoreMessage("到场已保存，暂未刷新任务评分；请重新打开详情查看。","error");}
+}
+function totalSummary(driver) {
+  return `<div class="arrival-summary"><div><div class="arrival-label">近30天自动均分</div><div class="arrival-value">${esc(scoreNumber(driver.auto_score))}</div></div>
+    <div><div class="arrival-label">已保存人工总分</div><div class="arrival-value">${driver.override?.manual_score == null ? "未设置" : esc(scoreNumber(driver.override.manual_score))}</div></div></div>
+    <p class="score-saved">已保存原因：${esc(driver.override?.reason || "无")}</p>`;
+}
+function openTotal(key) {
+  const driver=(driversData?.drivers||[]).find(d=>d.driver_key===key);if(!driver)return;
+  totalEditor={key,driver,conflict:false,reloading:false};const draft=totalDrafts.get(key)||{manual_score:driver.override?.manual_score ?? "",reason:driver.override?.reason || ""};
+  $("driverTotalBody").innerHTML=`<h2>${esc(driverName(driver))} · 人工总分</h2><div id="totalSaved">${totalSummary(driver)}</div>
+    <p class="arrival-help">人工总分会覆盖显示值，自动均分继续保留。恢复自动评分也需填写原因。</p>
+    <p id="totalReadonly" class="arrival-help" hidden>当前为只读模式，不能调整总分。</p>
+    <form id="totalForm"><div class="score-form-grid"><label class="score-field" for="totalScore">人工总分（0–100）<input id="totalScore" type="number" min="0" max="100" step="0.1" value="${esc(draft.manual_score)}"></label>
+    <label class="score-field score-wide" for="totalReason">调整 / 恢复原因<textarea id="totalReason" rows="3" required>${esc(draft.reason)}</textarea></label></div>
+    <div class="arrival-controls"><button id="totalSave" class="arrival-action primary" type="submit">保存人工总分</button><button id="totalRestore" class="arrival-action" type="button">恢复自动评分</button>
+    <button id="totalReload" class="arrival-action" type="button" hidden>重新读取最新总分</button></div></form><p id="totalFeedback" class="arrival-feedback" role="status" aria-live="polite"></p>`;
+  $("totalForm").addEventListener("input",()=>totalDrafts.set(key,{manual_score:$("totalScore").value,reason:$("totalReason").value}));
+  $("totalForm").addEventListener("submit",event=>{event.preventDefault();saveTotal(false);});
+  $("totalRestore").addEventListener("click",()=>saveTotal(true));$("totalReload").addEventListener("click",reloadTotal);syncTotalControls();
+  if(!$("driverTotalDialog").open)$("driverTotalDialog").showModal();
+}
+function syncTotalControls() {
+  if(!totalEditor||!$("totalForm"))return;
+  const busy=totalPending.has(totalEditor.key)||totalEditor.reloading,locked=!!scoringSettings().readonly;
+  $("totalScore").disabled=busy||locked;$("totalReason").disabled=busy||locked;
+  $("totalSave").disabled=busy||locked||totalEditor.conflict;$("totalRestore").disabled=busy||locked||totalEditor.conflict;
+  $("totalReload").hidden=!totalEditor.conflict;$("totalReload").disabled=busy;$("totalReadonly").hidden=!locked;
+  $("totalSave").textContent=totalPending.has(totalEditor.key)?"保存中…":"保存人工总分";
+}
+async function saveTotal(restore) {
+  const editor=totalEditor;if(!editor||scoringSettings().readonly||editor.conflict||editor.reloading||totalPending.has(editor.key))return;
+  const reason=$("totalReason").value.trim(),value=$("totalScore").value;
+  if(!reason){totalMessage("请填写调整或恢复原因。","error");$("totalReason").focus();return;}
+  if(!restore&&(!value||!$("totalScore").reportValidity())){totalMessage("请输入0至100的人工总分。","error");return;}
+  totalDrafts.set(editor.key,{manual_score:value,reason:$("totalReason").value});
+  try{
+    const headers=driverHeaders();totalPending.add(editor.key);syncTotalControls();totalMessage("正在保存…");
+    const response=await fetch(`/api/driver-total-score/${encodeURIComponent(editor.key)}`,{method:"POST",headers,body:JSON.stringify({manual_score:restore?null:Number(value),reason,version:editor.driver.override?.version ?? 0})});
+    const data=await response.json().catch(()=>({}));if(totalEditor!==editor)return;
+    if(response.status===409){editor.conflict=true;totalMessage("该司机总分已有更新，未覆盖。输入已保留，请重新读取后核对。","error");return;}
+    if(!response.ok||!data.override)throw new Error(data.error||"未收到保存结果，请重新读取核实");
+    editor.driver={...editor.driver,override:data.override};totalDrafts.delete(editor.key);if(restore)$("totalScore").value="";
+    $("totalSaved").innerHTML=totalSummary(editor.driver);totalMessage(restore?"已恢复自动评分。":"人工总分已保存。","success");await loadDrivers();
+    const latest=(driversData?.drivers||[]).find(d=>d.driver_key===editor.key);if(latest&&totalEditor===editor){editor.driver=latest;$("totalSaved").innerHTML=totalSummary(latest);}
+  }catch(error){if(totalEditor===editor)totalMessage(error.message+" 输入已保留。","error");}
+  finally{totalPending.delete(editor.key);syncTotalControls();}
+}
+async function reloadTotal(){
+  const editor=totalEditor;if(!editor||editor.reloading||totalPending.has(editor.key))return;
+  editor.reloading=true;syncTotalControls();
+  try{
+    const response=await fetch("/api/drivers"+(driversQuery?"?"+driversQuery:""),{cache:"no-store"}),data=await response.json();
+    if(!response.ok)throw new Error(data.error||"读取失败");const driver=(data.drivers||[]).find(d=>d.driver_key===editor.key);
+    if(!driver)throw new Error("当前窗口未找到该司机，请检查司机资料同步状态");if(totalEditor!==editor)return;
+    editor.driver=driver;editor.conflict=false;$("totalSaved").innerHTML=totalSummary(driver);totalMessage("已读取最新总分，您的输入已保留，请核对后再保存。");
+  }catch(error){if(totalEditor===editor)totalMessage(error.message+" 输入已保留。","error");}
+  finally{editor.reloading=false;syncTotalControls();}
+}
+$("driverFilters").addEventListener("submit",event=>{event.preventDefault();const start=$("driverStart").value,end=$("driverEnd").value;
+  if(start&&end&&start>end){driverMessage("开始日期不能晚于结束日期。","error");return;}
+  driversFilterInitialized=true;driversQuery=driverParams({start,end,route:$("driverRoute").value});ui.scoreAll=false;loadDrivers();});
+$("driverFilters").addEventListener("input",()=>{driversFilterInitialized=true;});
+$("driverReset").addEventListener("click",()=>{driversQuery="";driversFilterInitialized=false;ui.scoreAll=false;loadDrivers();});
+$("driverSync").addEventListener("click",syncDrivers);$("driverExport").addEventListener("click",exportDrivers);
+document.addEventListener("click",event=>{const print=event.target.closest("[data-driver-print]");if(print){event.stopPropagation();printDriverCheckin(print.dataset.driverPrint);return;}const total=event.target.closest("[data-driver-total]");if(total){event.stopPropagation();openTotal(total.dataset.driverTotal);}
+  const task=event.target.closest("[data-score-task]");if(task){event.stopPropagation();showSegment(task.dataset.scoreTask);}});
+
 /* ---- details ---- */
 async function showSegment(id) {
   if (!id || id === "0") return;
-  const d = await (await fetch("/api/segment/" + id)).json();
+  const request = ++segmentRequest;
+  let d;
+  try {
+    const response = await fetch("/api/segment/" + id, {cache: "no-store"});
+    d = await response.json();
+    if (!response.ok || !d.segment) throw new Error(d.error || "任务详情不存在");
+  } catch (error) {
+    if (request === segmentRequest) alert("无法读取任务详情：" + error.message);
+    return;
+  }
+  if (request !== segmentRequest) return;
+  const inDriverScope = d.driver_scoring_enabled ? d.driver_score?.in_scope === true : d.driver_arrival?.eligible !== false;
+  scoreEditor = d.driver_scoring_enabled && d.driver_score?.in_scope ? {id: String(id), record: d.driver_score, conflict: false, reloading: false} : null;
+  arrivalEditor = d.driver_arrival && inDriverScope ? {id: String(id), record: d.driver_arrival,
+    settings: d.driver_arrival_settings || state?.driver_arrival_settings || {}, conflict: false, reloading: false} : null;
   const list = (rows, f) => rows.length ? rows.map(f).join("") : '<p class="small">无</p>';
   $("detailBody").innerHTML = `<h2>${esc(d.segment.taskNo)} · ${esc(d.segment.placeOfOrigin)} → ${esc(d.segment.destination)}</h2>
+    ${arrivalEditor ? arrivalPanel() : ""}
+    ${scoreEditor ? `<p><button class="btn plain" type="button" data-driver-print="${esc(id)}">打印 Check-in</button> <span class="small">使用已保存的到场记录</span></p>` + taskScorePanel() : ""}
     <dl>${Object.entries(d.segment).map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
     <h3>当前规则结果</h3>${list(d.findings, (f) => `<p>${stageTag(f)} ${esc(TYPE(f.alert_type))} · 截止 ${esc(f.deadline_et)} ET · ${esc(f.reason)}</p>`)}
     <h3>预警历史</h3>${list(d.events, (e) => `<p class="small">${esc(e.at)} · #${e.alert_id} · ${esc(e.from_stage)} → ${esc(e.to_stage)} · ${esc(e.note)}</p>`)}
     <h3>通知记录</h3>${list(d.notifications, (n) => `<p class="small">${esc(n.at)} · ${esc(n.channel)} ${n.ok ? "" : "失败 " + esc(n.error)}</p><pre>${esc(n.text)}</pre>`)}`;
-  $("detail").showModal();
+  if (arrivalEditor) bindArrivalEditor();
+  if (scoreEditor) bindScoreEditor();
+  if (!$("detail").open) $("detail").showModal();
 }
 
 /* ---- shift actions (unchanged backend behaviour) ---- */
@@ -572,10 +1060,14 @@ async function shiftAction(action) {
 }
 
 document.addEventListener("click", async (e) => {
+  if (e.target.closest("[data-score-task],[data-driver-total],[data-driver-print]")) return;
+  const arrivalOpen = e.target.closest("[data-arrival-open]");
+  if (arrivalOpen) { e.stopPropagation(); return showSegment(arrivalOpen.dataset.arrivalOpen); }
   const t = e.target.closest("[data-shift],[data-ack],[data-close],[data-main],[data-origin],[data-send],[data-dep],[data-unl],[data-tab],[data-more],[data-clear],th[data-sort],tr[data-seg]");
   if (!t) return;
   if (t.dataset.clear) { $("q").value = ""; return renderAll(); }
-  if (t.dataset.main) { ui.main = t.dataset.main; ls.set("main-tab", ui.main); return renderAll(); }
+  if (t.dataset.main) { ui.main = t.dataset.main; ls.set("main-tab", ui.main); renderAll();
+    if (ui.main === "scores" && state?.driver_scoring_enabled) loadDrivers(); return; }
   if (t.dataset.origin) { ui.origin = t.dataset.origin; ls.set("origin-tab", ui.origin); return renderAll(); }
   if (t.dataset.send) { ui.send = t.dataset.send; ls.set("send-tab", ui.send); return renderAll(); }
   if (t.dataset.close) { e.stopPropagation(); return closeAlert(t.dataset.close); }

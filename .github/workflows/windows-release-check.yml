@@ -1,0 +1,43 @@
+name: Windows release check
+on:
+  push:
+    paths:
+      - 'bwi_monitor/**'
+      - 'tests/**'
+      - 'deploy/**'
+      - 'requirements.txt'
+      - '.github/workflows/windows-release-check.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            bwi_monitor
+            tests
+            deploy
+            tools
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Run regression tests
+        run: python -m unittest discover -s tests -q
+      - name: Build clean Windows package
+        run: python deploy/build_windows_package.py
+      - name: Verify Windows install and upgrade
+        shell: powershell
+        run: |
+          Expand-Archive dist/windows/BWI-Monitor-Windows.zip -DestinationPath "$env:RUNNER_TEMP\bwi-package"
+          $python = (Get-Command python).Source
+          & deploy/windows/test_install.ps1 -PackageDir "$env:RUNNER_TEMP\bwi-package\BWI-Monitor-Windows" -PythonExe $python
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BWI-Monitor-Windows
+          path: dist/windows/*

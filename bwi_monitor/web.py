@@ -1,11 +1,15 @@
 """Internal dashboard (SRS §8): stdlib HTTP server, JSON API + one HTML page."""
 import json
 import os
+import re
+import sqlite3
 import threading
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from ipaddress import ip_address
+from urllib.parse import parse_qs, unquote, urlsplit
 
-from . import config, departures, rules, shift
+from . import config, departures, driver_arrivals, driver_export, driver_print, driver_scores, rules, shift
 from .engine import SYSTEM_SEGMENT, rank
 from .rules import fmt_et
 from .store import Store, from_iso, utcnow
@@ -247,6 +251,55 @@ def _is_time(alert_type):
     return alert_type in ("DEPARTURE", "UNLOAD", "UNLOAD_60", "BRANCH_DEPARTURE")
 
 
+def driver_arrival_settings():
+    return {"readonly": os.environ.get("BWI_DASHBOARD_READONLY") == "1",
+            "admin_token_required": bool(config.ADMIN_TOKEN), "timezone": "America/New_York"}
+
+
+def driver_score_detail(store, seg, now):
+    if not seg:
+        return None
+    snap = store.driver_scores.snapshot()
+    profile = snap["profiles"].get(seg.get("taskNo"))
+    siblings = [s for s in store.segments() if s.get("taskNo") == seg.get("taskNo")]
+    if not driver_scores.in_task_scope(seg, siblings, profile):
+        return None
+    return driver_scores.task_view(seg, store.driver_arrivals.view(seg), profile,
+                                   snap["reviews"].get(seg.get("taskNo")))
+
+
+def driver_board(store, now, query=""):
+    """Filters affect exported tasks; driver averages always retain the stated 30-day window."""
+    args = parse_qs(query, keep_blank_values=True)
+    if set(args) - {"start", "end", "route", "include_phone"} or any(len(v) != 1 for v in args.values()):
+        raise driver_arrivals.ValidationError("筛选参数无效。")
+    today = shift.reporting_date(now)
+    values = {k: v[0] for k, v in args.items()}
+    try:
+        start = values.get("start") or str(today - timedelta(days=29))
+        end = values.get("end") or str(today)
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", start) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", end):
+            raise ValueError()
+        if date.fromisoformat(start) > date.fromisoformat(end):
+            raise ValueError()
+    except ValueError:
+        raise driver_arrivals.ValidationError("请填写有效日期范围，开始日期不能晚于结束日期。") from None
+    route = values.get("route") or ""
+    if route not in ("", "ORF01", "RIC01", "DCA01", "IAD01"):
+        raise driver_arrivals.ValidationError("仅可筛选四条 BWI 始发支线。")
+    if values.get("include_phone", "0") not in ("0", "1"):
+        raise driver_arrivals.ValidationError("电话导出选项无效。")
+    records, appointments = store.driver_arrivals.snapshot()
+    data = store.driver_scores.board(store.segments(), records, appointments, now)
+    data["tasks"] = [t for t in data["tasks"] if t.get("op_date") and start <= t["op_date"] <= end
+                     and (not route or t.get("destination") == route)]
+    keys = {(t.get("profile") or {}).get("driver_key") for t in data["tasks"]}
+    data["drivers"] = [d for d in data["drivers"] if d["driver_key"] in keys]
+    data["filter"] = {"start": start, "end": end, "route": route}
+    data["settings"] = driver_arrival_settings()
+    return data
+
+
 def build_state(store, now):
     last = store.last_poll()
     last_ok = store.last_poll(ok_only=True)
@@ -298,6 +351,20 @@ def build_state(store, now):
 
     ops_open = [a for a in open_alerts if not _is_time(a["alert_type"]) and a["segment_id"] != SYSTEM_SEGMENT]
     board = departure_board(store, list(segs.values()), now)
+    receiving = receiving_board(list(segs.values()), by_task, unloading, now)
+    arrival_records, appointments = store.driver_arrivals.snapshot()
+    scoring = store.driver_scores.snapshot()
+    for row in board + receiving + unloading:
+        seg = segs[row["segment_id"]]
+        task_no = seg.get("taskNo")
+        row["driver_arrival"] = driver_arrivals.view(seg, arrival_records.get(task_no), appointments.get(task_no))
+        profile = scoring["profiles"].get(task_no)
+        if driver_scores.in_task_scope(seg, by_task.get(task_no, []), profile):
+            row["driver_score"] = driver_scores.task_view(seg, row["driver_arrival"], profile,
+                                                         scoring["reviews"].get(task_no))
+        else:
+            row["driver_arrival"]["eligible"] = False
+            row["driver_score"] = None
     urgency = {"overdue": 0, "warn": 1, "working": 2, "open": 3, "pending": 4, "qty": 5, "uncertain": 5, "late": 6,
                "done": 7, "unknown": 8}
     unloading.sort(key=lambda r: (urgency.get(r["status_key"], 9), r["deadline"] or "9"))
@@ -314,8 +381,11 @@ def build_state(store, now):
     return {
         "now_iso": now.isoformat(),
         "cards": cards,
+        "driver_arrival_enabled": True,
+        "driver_scoring_enabled": True,
+        "driver_arrival_settings": driver_arrival_settings(),
         "unloading": unloading[:400],
-        "receiving": receiving_board(list(segs.values()), by_task, unloading, now),
+        "receiving": receiving,
         "receiving_window": dict(zip(("day", "start_et", "end_et"), (lambda d, s, e: (str(d), fmt_et(s), fmt_et(e)))(
             *receiving_window(now)))),
         "reporting_date": str(shift.reporting_date(now)),
@@ -363,8 +433,14 @@ def segment_detail(store, seg_id, now):
     ids = [a["id"] for a in alerts]
     task_segments = [s for s in store.segments() if s.get("taskNo") == seg.get("taskNo")]
     task_segments.sort(key=lambda s: s.get("sortNum") or 0)
+    score = driver_score_detail(store, seg, now)
     return {
         "segment": {k: seg.get(k) for k in FIELDS},
+        "driver_arrival_enabled": True,
+        "driver_arrival": store.driver_arrivals.view(seg) if score is not None else None,
+        "driver_scoring_enabled": True,
+        "driver_score": score,
+        "driver_arrival_settings": driver_arrival_settings(),
         "observations": seg.get("_obs") or {},
         "findings": [{"alert_type": f.alert_type, "stage": f.stage, "deadline_et": fmt_et(f.deadline),
                       "minutes": f.minutes, "reason": f.reason, "evidence": f.evidence}
@@ -381,6 +457,7 @@ def segment_detail(store, seg_id, now):
 
 class Handler(BaseHTTPRequestHandler):
     store = None
+    driver_sync = None
     lock = threading.Lock()
 
     def log_message(self, *args):
@@ -396,11 +473,51 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         now = utcnow()
+        parsed = urlsplit(self.path)
+        if parsed.path.startswith("/api/"):
+            try:
+                host = urlsplit("http://" + (self.headers.get("Host") or ""))
+                trusted = self._trusted_driver_arrival_host(host)
+            except ValueError:
+                trusted = False
+            if not trusted:
+                return self._send(403, {"error": "请从本机或服务监听地址打开看板。"})
         with self.lock:
-            if self.path in ("/", "/index.html"):
-                page = os.environ.get("BWI_DASHBOARD_FILE", "dashboard.html")  # preview: dashboard_v2.html
+            if parsed.path in ("/", "/index.html", "/dashboard-v2"):
+                page = "dashboard_v2.html" if parsed.path == "/dashboard-v2" else os.environ.get("BWI_DASHBOARD_FILE", "dashboard.html")
                 with open(os.path.join(os.path.dirname(__file__), os.path.basename(page)), "rb") as fh:
                     return self._send(200, fh.read(), "text/html")
+            if parsed.path.startswith("/api/driver-checkin/"):
+                match = re.fullmatch(r"/api/driver-checkin/([0-9]+)\.html", parsed.path)
+                if not match or parsed.query:
+                    return self._send(400, {"error": "打印任务参数无效。"})
+                if config.ADMIN_TOKEN and self.headers.get("X-Admin-Token") != config.ADMIN_TOKEN:
+                    return self._send(403, {"error": "打印需要管理员口令。"})
+                seg = self.store.segment(int(match[1]))
+                task = driver_score_detail(self.store, seg, now)
+                if not task:
+                    return self._send(404, {"error": "仅可打印有效的 BWI 始发四支线任务。"})
+                return self._send(200, driver_print.render(task, seg), "text/html")
+            if parsed.path in ("/api/drivers", "/api/driver-export.xlsx"):
+                try:
+                    if parsed.path.endswith(".xlsx") and config.ADMIN_TOKEN and self.headers.get("X-Admin-Token") != config.ADMIN_TOKEN:
+                        return self._send(403, {"error": "导出需要管理员口令。"})
+                    data = driver_board(self.store, now, parsed.query)
+                except (ValueError, driver_arrivals.ValidationError) as exc:
+                    return self._send(400, {"error": str(exc)})
+                data["sync"] = self.driver_sync.status() if self.driver_sync else {
+                    "running": False, "error": "此入口未启动司机同步，请使用司机看板入口。"}
+                if parsed.path == "/api/drivers":
+                    return self._send(200, data)
+                include_phone = parse_qs(parsed.query).get("include_phone", ["0"])[0] == "1"
+                payload = driver_export.export_scores(data, include_phone=include_phone, exported_at=fmt_et(now))
+                self.send_response(200)
+                self.send_header("Content-Type", driver_export.MIME)
+                self.send_header("Content-Disposition", f'attachment; filename="BWI_driver_scores_{now.astimezone(rules.EASTERN):%Y%m%d_%H%M}.xlsx"')
+                self.send_header("Content-Length", str(len(payload)))
+                self.send_header("Cache-Control", "no-store")
+                self.end_headers()
+                return self.wfile.write(payload)
             if self.path == "/api/state":
                 return self._send(200, build_state(self.store, now))
             if self.path.startswith("/api/segment/"):
@@ -417,9 +534,144 @@ class Handler(BaseHTTPRequestHandler):
         except (ValueError, json.JSONDecodeError):
             return {}
 
+    def _trusted_driver_arrival_host(self, requested):
+        """Trust the actual listener/connection address, not two attacker-supplied matching headers."""
+        try:
+            bound_host, bound_port = self.server.server_address[:2]
+            if (requested.port or 80) != bound_port:
+                return False
+            bound = ip_address(bound_host)
+            if bound.is_unspecified:
+                # A wildcard listener serves several interfaces; use the concrete interface receiving this request.
+                bound = ip_address(self.connection.getsockname()[0])
+            if bound.is_unspecified:
+                return False
+            hostname = requested.hostname.rstrip(".").lower()
+            if bound.is_loopback and hostname == "localhost":
+                return True
+            address = ip_address(hostname)
+            return address.is_loopback if bound.is_loopback else address == bound
+        except (ValueError, AttributeError, TypeError, IndexError):
+            return False
+
+    def _driver_arrival_body(self, required_keys=None):
+        required_keys = {"actual_arrival_et", "version"} if required_keys is None else set(required_keys)
+        # Requiring JSON and a same-origin browser POST prevents form-based CSRF even when no admin token is set.
+        origin, host = self.headers.get("Origin"), self.headers.get("Host")
+        try:
+            if not origin or not host or any(c.isspace() for c in origin + host):
+                raise ValueError()
+            sent, here = urlsplit(origin), urlsplit("http://" + host)
+            for part in (sent, here):
+                if not part.hostname or part.username is not None or part.password is not None or \
+                        part.path or part.query or part.fragment:
+                    raise ValueError()
+            if sent.scheme != "http" or (sent.hostname, sent.port or 80) != (here.hostname, here.port or 80):
+                raise ValueError()
+            if not self._trusted_driver_arrival_host(here):
+                raise ValueError()
+        except ValueError:
+            self._send(403, {"error": "请在当前看板页面内保存到场记录。"})
+            return None
+        if config.ADMIN_TOKEN and self.headers.get("X-Admin-Token") != config.ADMIN_TOKEN:
+            self._send(403, {"error": "需要管理员令牌才能保存到场记录。"})
+            return None
+        if self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower() != "application/json":
+            self._send(415, {"error": "到场记录只接受 JSON 请求。"})
+            return None
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+            if not 0 < n <= 8192 or self.headers.get("Transfer-Encoding"):
+                raise ValueError()
+            body = json.loads(self.rfile.read(n).decode("utf-8"))
+            if not isinstance(body, dict) or set(body) != required_keys:
+                raise ValueError()
+        except (ValueError, UnicodeDecodeError):
+            self._send(400, {"error": "请求格式无效，请重新打开表单后重试。"})
+            return None
+        return body
+
+    def _save_driver_arrival(self):
+        match = re.fullmatch(r"/api/driver-arrival/([0-9]{1,18})", self.path)
+        if not match:
+            return self._send(400, {"error": "任务航段编号无效。"})
+        body = self._driver_arrival_body()
+        if body is None:
+            return
+        segment_id = int(match.group(1))
+        with self.lock:
+            try:
+                result = self.store.driver_arrivals.save(segment_id, body["actual_arrival_et"], body["version"], utcnow())
+            except driver_arrivals.ConflictError as exc:
+                return self._send(409, {"error": str(exc),
+                                        "driver_arrival": self.store.driver_arrivals.view(self.store.segment(segment_id))})
+            except driver_arrivals.NotFoundError as exc:
+                return self._send(404, {"error": str(exc)})
+            except driver_arrivals.ValidationError as exc:
+                return self._send(400, {"error": str(exc)})
+            except sqlite3.OperationalError:
+                return self._send(503, {"error": "暂时无法保存到场记录，请稍后重新读取记录并重试。"})
+            score = driver_score_detail(self.store, self.store.segment(segment_id), utcnow())
+        return self._send(200, {"ok": True, "driver_arrival": result, "driver_score": score})
+
+    def _save_driver_review(self):
+        match = re.fullmatch(r"/api/driver-score/([0-9]{1,18})", self.path)
+        if not match:
+            return self._send(400, {"error": "任务航段编号无效。"})
+        body = self._driver_arrival_body({"route_ok", "return_status", "manual_deduction", "manual_reason", "version"})
+        if body is None:
+            return
+        segment_id, now = int(match.group(1)), utcnow()
+        with self.lock:
+            try:
+                self.store.driver_scores.save_review(segment_id, body, now)
+            except driver_arrivals.ConflictError as exc:
+                return self._send(409, {"error": str(exc), "driver_score": driver_score_detail(self.store, self.store.segment(segment_id), now)})
+            except driver_arrivals.NotFoundError as exc:
+                return self._send(404, {"error": str(exc)})
+            except driver_arrivals.ValidationError as exc:
+                return self._send(400, {"error": str(exc)})
+            except sqlite3.OperationalError:
+                return self._send(503, {"error": "暂时无法保存，请重新读取记录后重试。"})
+            return self._send(200, {"ok": True, "driver_score": driver_score_detail(self.store, self.store.segment(segment_id), now)})
+
+    def _save_driver_override(self):
+        match = re.fullmatch(r"/api/driver-total-score/(tms:[a-f0-9]{64})", unquote(self.path))
+        if not match:
+            return self._send(400, {"error": "司机身份标识无效。"})
+        body = self._driver_arrival_body({"manual_score", "reason", "version"})
+        if body is None:
+            return
+        key = match.group(1)
+        with self.lock:
+            try:
+                result = self.store.driver_scores.override(key, body, utcnow())
+            except driver_arrivals.ConflictError as exc:
+                return self._send(409, {"error": str(exc), "override": self.store.driver_scores.get_override(key)})
+            except driver_arrivals.NotFoundError as exc:
+                return self._send(404, {"error": str(exc)})
+            except driver_arrivals.ValidationError as exc:
+                return self._send(400, {"error": str(exc)})
+            except sqlite3.OperationalError:
+                return self._send(503, {"error": "暂时无法保存，请重新读取记录后重试。"})
+            return self._send(200, {"ok": True, "override": result})
+
     def do_POST(self):
         if os.environ.get("BWI_DASHBOARD_READONLY") == "1":  # preview servers never change shift or alert state
             return self._send(403, {"error": "read-only preview: use the live dashboard for shift actions"})
+        if self.path.startswith("/api/driver-arrival/"):
+            return self._save_driver_arrival()
+        if self.path.startswith("/api/driver-score/"):
+            return self._save_driver_review()
+        if self.path.startswith("/api/driver-total-score/"):
+            return self._save_driver_override()
+        if self.path == "/api/driver-sync":
+            body = self._driver_arrival_body(set())
+            if body is None:
+                return
+            if not self.driver_sync:
+                return self._send(503, {"error": "请使用司机看板入口同步 TMS 司机。"})
+            return self._send(202, {"ok": True, "sync": self.driver_sync.start()})
         if self.path in ("/api/shift/start", "/api/shift/end", "/api/shift/confirm-open", "/api/shift/opening"):
             body = self._body()
             if config.ADMIN_TOKEN and self.headers.get("X-Admin-Token") != config.ADMIN_TOKEN:
