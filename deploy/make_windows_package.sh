@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 OUT="dist/BWI-Monitor-$(date +%Y%m%d-%H%M)"
 rm -rf "$OUT"; mkdir -p "$OUT/secrets" "$OUT/data"
 cp -R bwi_monitor "$OUT/"; find "$OUT" -name __pycache__ -type d -prune -exec rm -rf {} +
-cp requirements.txt deploy/windows/install.ps1 deploy/windows/uninstall.ps1 deploy/windows/run_bwi.bat \
+cp requirements.txt deploy/windows/install.ps1 deploy/windows/uninstall.ps1 deploy/windows/run_bwi.bat deploy/windows/Install-BWI-Monitor.bat deploy/windows/Uninstall-BWI-Monitor.bat \
    deploy/windows/env.windows.example deploy/windows/README-Windows.md "$OUT/"
 for arg in "$@"; do
   case "$arg" in

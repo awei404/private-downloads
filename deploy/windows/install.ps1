@@ -1,19 +1,36 @@
-# BWI TMS monitor - Windows installer. Run in PowerShell "as Administrator" from the unpacked folder:
-#   Set-ExecutionPolicy -Scope Process Bypass; .\install.ps1
+# BWI TMS monitor - Windows installer. Double-click Install-BWI-Monitor.bat (or, as Administrator:
+#   Set-ExecutionPolicy -Scope Process Bypass; .\install.ps1)
 # Re-running is safe: it updates the program and keeps data, secrets and .env.
 param([string]$InstallDir = "C:\BWI-Monitor", [int]$Port = 8766)
 $ErrorActionPreference = "Stop"
 $src = Split-Path -Parent $MyInvocation.MyCommand.Path
 
+function Find-Python {
+  foreach ($p in "$env:ProgramFiles\Python312\python.exe", "$env:ProgramFiles\Python313\python.exe") { if (Test-Path $p) { return $p } }
+  $py = Get-Command py -ErrorAction SilentlyContinue
+  if ($py) { return (& py -3 -c "import sys; print(sys.executable)") }
+  return $null
+}
 Write-Host "1/6 Checking Python 3 ..."
-$py = Get-Command py -ErrorAction SilentlyContinue
-if (-not $py) { throw "Python 3 not found. Install Python 3.12 from python.org (tick 'Add python.exe to PATH'), then run again." }
-& py -3 --version
+$python = Find-Python
+if (-not $python) {
+  if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+    throw "Python 3 not found. Install Python 3.12 from python.org (Install for all users, Add to PATH), then run again."
+  }
+  Write-Host "   Installing Python 3.12 for all users (a few minutes) ..."
+  winget install -e --id Python.Python.3.12 --scope machine --silent --accept-package-agreements --accept-source-agreements
+  $python = Find-Python
+  if (-not $python) { throw "Python install did not finish. Install Python 3.12 from python.org, then run again." }
+}
+& $python --version
 
 Write-Host "2/6 Copying program to $InstallDir ..."
 New-Item -ItemType Directory -Force -Path $InstallDir, "$InstallDir\data", "$InstallDir\secrets" | Out-Null
 $existing = Get-ScheduledTask -TaskName "BWI TMS Monitor" -ErrorAction SilentlyContinue
 if ($existing) { Stop-ScheduledTask -TaskName "BWI TMS Monitor" -ErrorAction SilentlyContinue; Start-Sleep 3 }
+Get-CimInstance Win32_Process -Filter "Name='python.exe'" | Where-Object { $_.CommandLine -like "*-m bwi_monitor*" } |
+  ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+Start-Sleep 2
 Copy-Item -Recurse -Force "$src\bwi_monitor" $InstallDir
 Copy-Item -Force "$src\requirements.txt", "$src\run_bwi.bat" $InstallDir
 if (-not (Test-Path "$InstallDir\.env")) { Copy-Item "$src\env.windows.example" "$InstallDir\.env" }
@@ -22,7 +39,7 @@ if ((Test-Path "$src\data\bwi_monitor.db") -and -not (Test-Path "$InstallDir\dat
 }
 
 Write-Host "3/6 Creating Python environment and installing packages ..."
-if (-not (Test-Path "$InstallDir\venv")) { & py -3 -m venv "$InstallDir\venv" }
+if (-not (Test-Path "$InstallDir\venv")) { & $python -m venv "$InstallDir\venv" }
 & "$InstallDir\venv\Scripts\python.exe" -m pip install --upgrade pip | Out-Null
 & "$InstallDir\venv\Scripts\python.exe" -m pip install -r "$InstallDir\requirements.txt"
 
@@ -49,7 +66,7 @@ if ($missing) {
 } else {
   Start-ScheduledTask -TaskName "BWI TMS Monitor"
   Start-Sleep 20
-  try { Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:$Port/healthz" | Out-Null; Write-Host "Running: http://127.0.0.1:$Port" }
+  try { Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:$Port/healthz" | Out-Null; Write-Host "Running: http://127.0.0.1:$Port"; Start-Process "http://127.0.0.1:$Port" }
   catch { Write-Warning "Not answering yet. Check $InstallDir\data\service.log" }
 }
 $ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike "127.*" -and $_.PrefixOrigin -ne "WellKnown" } | Select-Object -First 1).IPAddress

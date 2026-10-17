@@ -1066,3 +1066,6 @@ Reason: TMS unload marked complete, but fewer bags unloaded than due at BWI (27 
 Action: Verify the record in TMS
 TMS data as of 2026-10-17 15:54 ET
 
+[16:04] poll ok: 3782 BWI segments, 11 changed
+[16:15] poll ok: 3784 BWI segments, 12 changed
+[16:25] poll ok: 3784 BWI segments, 11 changed

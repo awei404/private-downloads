@@ -1,2 +1,9 @@
+bwi_monitor.db*
+logs/
 __pycache__/
-.DS_Store
+*.csv
+.env
+secrets/
+trial/
+dev/
+.env.dev
