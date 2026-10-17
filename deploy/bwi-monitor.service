@@ -1,0 +1,22 @@
+# systemd unit for Linux without Docker. Install:
+#   sudo cp deploy/bwi-monitor.service /etc/systemd/system/ && sudo systemctl enable --now bwi-monitor
+[Unit]
+Description=BWI TMS real-time alert monitor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=bwi
+WorkingDirectory=/opt/bwi-monitor
+EnvironmentFile=/opt/bwi-monitor/.env
+Environment=GOFO_AUTH_FILE=/opt/bwi-monitor/secrets/gofo_auth
+Environment=FEISHU_WEBHOOK_FILE=/opt/bwi-monitor/secrets/feishu_webhook
+Environment=BWI_DB_PATH=/var/lib/bwi-monitor/bwi_monitor.db
+Environment=BWI_LOG_DIR=/var/lib/bwi-monitor/logs
+Environment=TZ=America/New_York
+ExecStart=/usr/bin/python3 -m bwi_monitor
+Restart=always
+RestartSec=15
+
+[Install]
+WantedBy=multi-user.target

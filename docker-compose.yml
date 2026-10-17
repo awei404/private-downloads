@@ -1,0 +1,21 @@
+# docker compose up -d   — runs the monitor continuously; restarts automatically.
+services:
+  bwi-monitor:
+    build: .
+    restart: unless-stopped
+    env_file: .env                       # settings (copy .env.example); no credentials in this file
+    environment:
+      GOFO_AUTH_FILE: /run/secrets/gofo_auth
+      FEISHU_WEBHOOK_FILE: /run/secrets/feishu_webhook
+    secrets: [gofo_auth, feishu_webhook]
+    volumes:
+      - bwi-data:/data                   # database + logs survive restarts and rebuilds
+    ports:
+      - "8765:8765"                      # dashboard for the local network; set BWI_ADMIN_TOKEN in .env
+secrets:
+  gofo_auth:
+    file: ./secrets/gofo_auth            # one line: the TMS Authorization value ("Bearer ...")
+  feishu_webhook:
+    file: ./secrets/feishu_webhook       # one line: the (new, rotated) Feishu custom-bot webhook URL
+volumes:
+  bwi-data:

@@ -1,0 +1,10 @@
+.git
+*.db*
+*.csv
+logs/
+trial/
+secrets/
+.env
+__pycache__/
+tests/
+*.md

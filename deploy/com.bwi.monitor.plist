@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- macOS: start the monitor at boot/login and restart it if it stops.
+     Install (adjust paths and USER first):
+       sudo cp deploy/com.bwi.monitor.plist /Library/LaunchDaemons/ && sudo launchctl load -w /Library/LaunchDaemons/com.bwi.monitor.plist
+     Also disable sleep on the production Mac: sudo pmset -a sleep 0 -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.bwi.monitor</string>
+  <key>UserName</key><string>USER</string>
+  <key>WorkingDirectory</key><string>/opt/bwi-monitor</string>
+  <key>ProgramArguments</key>
+  <array><string>/bin/sh</string><string>-c</string>
+    <string>set -a; . ./.env; set +a; exec /usr/bin/caffeinate -i /usr/local/bin/python3 -m bwi_monitor</string></array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>TZ</key><string>America/New_York</string>
+    <key>GOFO_AUTH_FILE</key><string>/opt/bwi-monitor/secrets/gofo_auth</string>
+    <key>FEISHU_WEBHOOK_FILE</key><string>/opt/bwi-monitor/secrets/feishu_webhook</string>
+    <key>BWI_DB_PATH</key><string>/opt/bwi-monitor/data/bwi_monitor.db</string>
+    <key>BWI_LOG_DIR</key><string>/opt/bwi-monitor/data/logs</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>15</integer>
+  <key>StandardOutPath</key><string>/opt/bwi-monitor/data/service.log</string>
+  <key>StandardErrorPath</key><string>/opt/bwi-monitor/data/service.log</string>
+</dict>
+</plist>
