@@ -1,3 +1,4 @@
+from contextlib import closing
 """Legacy appointments are explicit task data, never inferred route defaults."""
 from contextlib import redirect_stdout
 from datetime import datetime, timezone
@@ -41,27 +42,27 @@ class LegacyImportTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.source = Path(self.temp.name) / "legacy.db"
         self.target = Path(self.temp.name) / "monitor.db"
-        with sqlite3.connect(self.source) as db:
+        with closing(sqlite3.connect(self.source)) as db, db:
             db.execute("CREATE TABLE checkins(id INTEGER PRIMARY KEY, date TEXT, scheduled_time TEXT, "
                        "dms_task_id TEXT, dms_match_confirmed INTEGER, "
                        "arrival_time TEXT, score_given REAL, notes TEXT)")
-        with sqlite3.connect(self.target) as db:
+        with closing(sqlite3.connect(self.target)) as db, db:
             db.execute("CREATE TABLE segments(id INTEGER PRIMARY KEY, task_no TEXT, "
                        "origin TEXT, destination TEXT, data TEXT)")
 
     def add_source(self, task="MT1", day="2026-10-16", clock="12:00", confirmed=1):
-        with sqlite3.connect(self.source) as db:
+        with closing(sqlite3.connect(self.source)) as db, db:
             return db.execute("INSERT INTO checkins(date,scheduled_time,dms_task_id,dms_match_confirmed,"
                               "arrival_time,score_given,notes) VALUES (?,?,?,?,?,?,?)",
                               (day, clock, task, confirmed, "14:00", 0, "DO NOT COPY PERSONAL DATA")).lastrowid
 
     def add_target(self, task="MT1", origin="BWI.H", destination="EWR.H"):
-        with sqlite3.connect(self.target) as db:
+        with closing(sqlite3.connect(self.target)) as db, db:
             db.execute("INSERT INTO segments(task_no,origin,destination,data) VALUES (?,?,?,?)",
                        (task, origin, destination, '{"untouched":true}'))
 
     def appointments(self):
-        with sqlite3.connect(self.target) as db:
+        with closing(sqlite3.connect(self.target)) as db, db:
             db.row_factory = sqlite3.Row
             return [dict(row) for row in db.execute("SELECT * FROM driver_appointments ORDER BY task_no")]
 
@@ -84,7 +85,7 @@ class LegacyImportTests(unittest.TestCase):
         self.assertEqual((repeated["already_present"], repeated["imported"]), (1, 0))
         self.assertEqual(self.appointments(), [record])
         self.assertEqual(self.source.read_bytes(), source_before)
-        with sqlite3.connect(self.target) as db:
+        with closing(sqlite3.connect(self.target)) as db, db:
             self.assertEqual(db.execute("SELECT DISTINCT data FROM segments").fetchall(), [('{"untouched":true}',)])
             self.assertIsNone(db.execute("SELECT 1 FROM sqlite_master WHERE name='driver_arrivals'").fetchone())
 
@@ -132,14 +133,14 @@ class LegacyImportTests(unittest.TestCase):
         self.add_source()
         self.add_target()
         import_appointments(self.source, self.target)
-        with sqlite3.connect(self.target) as db:
+        with closing(sqlite3.connect(self.target)) as db, db:
             db.execute("UPDATE driver_appointments SET scheduled_arrival_at=?, source=?, source_record_id=NULL",
                        ("2026-10-16T17:00:00+00:00", "人工约定"))
         existing = self.appointments()
         summary = import_appointments(self.source, self.target)
         self.assertEqual((summary["existing_conflicts"], summary["imported"]), (1, 0))
         self.assertEqual(self.appointments(), existing)
-        with sqlite3.connect(self.target) as db:
+        with closing(sqlite3.connect(self.target)) as db, db:
             db.execute("UPDATE driver_appointments SET scheduled_arrival_at=?", ("2026-10-16T12:00:00-04:00",))
         existing = self.appointments()
         self.assertEqual(import_appointments(self.source, self.target)["already_present"], 1)
@@ -156,7 +157,7 @@ class LegacyImportTests(unittest.TestCase):
         for task in ("MT1", "MT2"):
             self.add_source(task)
             self.add_target(task)
-        with sqlite3.connect(self.target) as db:
+        with closing(sqlite3.connect(self.target)) as db, db:
             db.execute(APPOINTMENT_SCHEMA)
             db.execute("CREATE TRIGGER reject_second BEFORE INSERT ON driver_appointments "
                        "WHEN NEW.task_no='MT2' BEGIN SELECT RAISE(ABORT, 'test rejection'); END")

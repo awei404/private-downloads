@@ -1,3 +1,4 @@
+from contextlib import closing
 """Driver sync uses synthetic records and an injected transport; never live TMS."""
 from datetime import datetime, timedelta, timezone
 import json
@@ -114,13 +115,13 @@ class DriverSyncTests(unittest.TestCase):
         self.path = Path(self.temp.name) / "test.db"
         self.auth = Path(self.temp.name) / "test-auth"
         self.auth.write_text("test-token-one", encoding="utf-8")
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("CREATE TABLE segments(id INTEGER PRIMARY KEY, task_no TEXT, data TEXT, validity TEXT)")
             db.executescript(driver_scores.SCHEMA)
 
     def add(self, seg=None, validity=None):
         seg = seg or segment()
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("INSERT INTO segments(id,task_no,data,validity) VALUES(?,?,?,?)",
                        (seg["id"], seg["taskNo"], json.dumps(seg), validity))
 
@@ -129,11 +130,11 @@ class DriverSyncTests(unittest.TestCase):
                "driver_phone": "2025550100", "supplier_name": "Old Carrier", "vehicle_plate": "OLDPLATE",
                "source": source, "updated_at": (at or NOW - timedelta(minutes=20)).isoformat()}
         row.update(extra)
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("INSERT INTO driver_task_profiles VALUES(?,?,?,?,?,?,?,?)", tuple(row.values()))
 
     def profiles(self):
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             db.row_factory = sqlite3.Row
             return {r["task_no"]: dict(r) for r in db.execute("SELECT * FROM driver_task_profiles")}
 
@@ -162,7 +163,7 @@ class DriverSyncTests(unittest.TestCase):
         self.assertEqual(profile["driver_key"], driver_sync.driver_key(profile["driver_name"], profile["driver_phone"]))
         self.assertNotIn("Operator", json.dumps(profile))
         self.assertNotIn("DO NOT CACHE", json.dumps(profile))
-        with sqlite3.connect(self.path) as db:
+        with closing(sqlite3.connect(self.path)) as db, db:
             self.assertEqual(json.loads(db.execute("SELECT data FROM segments").fetchone()[0]), segment())
             self.assertEqual(db.execute("SELECT COUNT(*) FROM driver_score_reviews").fetchone()[0], 0)
 
@@ -371,7 +372,7 @@ class DriverSyncTests(unittest.TestCase):
     def test_scope_change_while_request_in_flight_does_not_associate_driver(self):
         self.add()
         def response(task):
-            with sqlite3.connect(self.path) as db:
+            with closing(sqlite3.connect(self.path)) as db, db:
                 db.execute("UPDATE segments SET validity='VOIDED'")
             return {"records": [remote(task)]}
         self.run_batch(self.sync(FakeTransport(response)))
