@@ -33,6 +33,10 @@
   .btn.start { background: #22a35a; color: #fff; } .btn.end { background: #d64545; color: #fff; }
   .btn.ghost { background: transparent; color: #fff; border-color: rgba(255,255,255,.45); }
   .btn.plain { background: var(--panel); color: var(--text); border-color: var(--line); font-weight: 500; }
+  .btn.mini { padding: 2px 8px; font-size: 12px; }
+  .chipbtn { cursor: pointer; font: inherit; color: inherit; }
+  .hiddenlist { padding: 8px 16px 12px; border-top: 1px solid var(--line); }
+  .hiddenlist summary { cursor: pointer; color: var(--muted); font-size: 13px; }
   .toggle { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; cursor: pointer; }
   .search { padding: 6px 10px; border-radius: 7px; border: 0; min-width: 220px; }
 
@@ -210,6 +214,7 @@
     <h3 class="subhead">已到达 <span class="small" id="arrivedCount"></span></h3>
     <div class="tablewrap"><table id="recvArrived"></table></div>
     <div class="more" id="recvArrivedMore"></div>
+    <details class="hiddenlist" id="hidden-recv" hidden><summary></summary><div></div></details>
   </section>
 
   <!-- 发车 -->
@@ -223,6 +228,7 @@
     <div class="box-head" style="border-top:1px solid var(--line)"><div class="sub">筛选</div><div class="filters" id="depFilters"></div></div>
     <div class="tablewrap"><table id="depTable"></table></div>
     <div class="more" id="depMore"></div>
+    <details class="hiddenlist" id="hidden-send" hidden><summary></summary><div></div></details>
   </section>
 
   <!-- 异常预警 -->
@@ -278,6 +284,17 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "—").replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const ls = {get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } },
             set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} }};
+/* admin password: asked once per browser and remembered; forgotten as soon as the server rejects it */
+function adminToken() {
+  let t = ls.get("bwi-admin-token");
+  if (!t) { t = (prompt("管理员口令（这台电脑的浏览器只需输入一次）：") || "").trim(); if (t) ls.set("bwi-admin-token", t); }
+  return t;
+}
+const _fetch = window.fetch.bind(window);
+window.fetch = async (url, opt = {}) => { const r = await _fetch(url, opt);
+  if (r.status === 403 && opt.headers && opt.headers["X-Admin-Token"]) ls.set("bwi-admin-token", ""); return r; };
+/* the operator's name is remembered too and offered as the default */
+function askName(msg) { const v = (prompt(msg, ls.get("bwi-user") || "") || "").trim(); if (v) ls.set("bwi-user", v); return v; }
 let state = null, clockOffset = 0, seenAlarm = null, audio = null;
 const ui = {dep: ls.get("dep-filter") || "all", unl: ls.get("unl-filter") || "active", tab: "active",
             main: ls.get("main-tab") || "send", origin: ls.get("origin-tab") || "today", send: ls.get("send-tab") || "bwi",
@@ -338,11 +355,14 @@ function renderHeader(s) {
   const h = s.health, sh = s.shift, f = s.feishu;
   const tms = h.stale ? ["bad", `TMS数据过期（最后成功 ${md(h.last_ok_et)}）`] : ["ok", `TMS在线 · ${h.last_ok_et.slice(11)} ET 更新`];
   const shift = sh.alerts_enabled ? ["ok", `班次运行中 · 启动 ${md(sh.confirmed_start_et)}`] : ["warn", "班次未开始 · 提醒已静音"];
-  const fs = !f.enabled ? ["bad", "飞书关闭"] : f.test_mode ? ["warn", "飞书测试模式"]
-    : f.live_this_shift ? (f.last && !f.last.ok ? ["bad", "飞书发送失败"] : ["ok", "飞书正常（本班次实时）"])
+  const fs = !f.enabled ? ["bad", "飞书关闭"] : f.test_mode ? ["warn", "飞书测试模式（只记录不发送）"]
+    : !sh.alerts_enabled ? ["warn", "飞书待命（上班后发送）"]
+    : f.live_this_shift ? (f.last && !f.last.ok ? ["bad", "飞书发送失败"] : ["ok", "飞书正式发送中"])
     : f.authorization_pending ? ["warn", "飞书已授权·下一班次生效"] : ["warn", "飞书未授权本班次"];
   const open = ["ok", "收车营业 12:00–19:00"];
-  $("chips").innerHTML = [tms, shift, open, fs].map(([c, t]) => `<span class="chip"><span class="dot ${c}"></span>${esc(t)}</span>`).join("") +
+  $("chips").innerHTML = [tms, shift, open].map(([c, t]) => `<span class="chip"><span class="dot ${c}"></span>${esc(t)}</span>`).join("") +
+    (f.enabled ? `<button class="chip chipbtn" data-feishu-mode="${f.test_mode ? "live" : "test"}" title="点击切换：${f.test_mode ? "开始正式发送飞书" : "改为测试模式（只记录不发送）"}"><span class="dot ${fs[0]}"></span>${esc(fs[1])} ⇄</button>`
+     : `<span class="chip"><span class="dot ${fs[0]}"></span>${esc(fs[1])}</span>`) +
     `<span class="chip">报表日 ${esc(sh.reporting_date)}</span>`;
   $("btnStart").disabled = sh.alerts_enabled; $("btnEnd").disabled = !sh.alerts_enabled;
 
@@ -417,10 +437,11 @@ function renderDepartures(s) {
     {h: "剩余时间", k: "left", sv: (r) => r.manual_et || r.key === "invalid" ? Infinity : r.left, cls: "mono",
      f: (r) => r.key === "invalid" ? "—" : r.manual_et ? `<span class="cd idle">${esc(zhMargin(r.margin))}</span>`
        : `<span class="cd ${countdown(r.deadline).cls}" data-cd="${r.deadline}">${countdown(r.deadline).text}</span>`},
-    {h: "发车状态", k: "key", f: tag},
+    {h: "发车状态", k: "key", f: (r) => tag(r) + ` <button class="btn plain mini" data-hide="${r.segment_id}" title="不需要出现在这里的任务：隐藏后也不再提醒，可在下方“已隐藏”恢复">隐藏</button>`},
     {h: "通知", k: "notification", f: (r) => `<span class="small">${esc(zhNote(r.notification))}</span>`, sort: false},
   ], rows.filter(filt), {all: ui.depAll, flag: "depAll", empty: searching() ? `没有与“${esc(searching())}”匹配的发车任务` : "暂无符合条件的发车任务",
      rowClass: (r) => ({overdue: "r-overdue", near: "r-warn", done: "r-done", late: "r-overdue", future: "r-future", invalid: "r-future"})[r.key] || ""});
+  renderHidden(s, "send");
 }
 
 /* ---- D: receiving (by origin; arrived / not arrived; predicted arrival) ---- */
@@ -469,6 +490,7 @@ function renderReceiving(s) {
     {h: "预计到达 (ET)", k: "time", f: (r) => `<b class="mono">${md(r.time_et)}</b> <span class="small">${esc(r.source)}</span>`},
     {h: "距到达", k: "time", cls: "mono", f: etaCell},
     {h: "车辆状态", k: "vehicle_status", f: (r) => `<span class="small">${esc(r.vehicle_status)}</span>`},
+    {h: "", k: "hide", sort: false, f: (r) => `<button class="btn plain mini" data-hide="${r.segment_id}" title="不需要出现在这里的任务：隐藏后也不再提醒，可在下方“已隐藏”恢复">隐藏</button>`},
   ], coming, {all: ui.comingAll, flag: "comingAll", empty: ui.origin === "today" ? "本班次没有待到达的车" : "该始发地没有在途车辆",
      rowClass: (r) => r.late ? "r-warn" : r.bucket !== "today" ? "r-future" : ""});
   render("recvArrived", "recvArrivedMore", [
@@ -482,8 +504,18 @@ function renderReceiving(s) {
     {h: "剩余", k: "first_scan_deadline", cls: "mono", f: (r) => ["open", "working", "warn"].includes(r.unload_key)
        ? `<span class="cd ${countdown(r.first_scan_deadline).cls}" data-cd="${r.first_scan_deadline}">${countdown(r.first_scan_deadline).text}</span>` : "—"},
     {h: "卸车状态", k: "unload_key", f: (r) => `<span class="tag ${UNL_TAG[r.unload_key] || "t-idle"}">${esc(r.unload_status || "—")}</span>`},
+    {h: "", k: "hide", sort: false, f: (r) => `<button class="btn plain mini" data-hide="${r.segment_id}" title="不需要出现在这里的任务：隐藏后也不再提醒，可在下方“已隐藏”恢复">隐藏</button>`},
   ], arrived, {all: ui.arrivedAll, flag: "arrivedAll", empty: "本窗口还没有到达的车",
      rowClass: (r) => ({overdue: "r-overdue", warn: "r-warn", done: "r-done"})[r.unload_key] || ""});
+  renderHidden(s, "recv");
+}
+function renderHidden(s, board) {
+  const rows = (s.hidden || []).filter((r) => r.board === board);
+  const box = $("hidden-" + board);
+  box.hidden = !rows.length;
+  box.querySelector("summary").textContent = `已隐藏的任务（${rows.length}）· 不显示、不提醒`;
+  box.querySelector("div").innerHTML = rows.map((r) => `<p class="small"><span class="mono">${esc(r.taskNo)}</span> ${esc(r.placeOfOrigin)} → ${esc(r.destination)}
+    · ${esc(r.user)} 于 ${esc(md(r.at_et))} 隐藏：${esc(r.reason)} <button class="btn plain mini" data-unhide="${r.segment_id}">恢复</button></p>`).join("");
 }
 
 function renderMainTabs(s) {
@@ -673,7 +705,7 @@ async function saveArrival(clear) {
   if (clear && !confirm(`确定清除已保存的司机实际到场时间 ${arrivalTimeText(editor.record.actual_arrival_et)}（美东）？\n清除后，此任务的到场项评分会恢复为待填写。`)) return;
   const headers = {"Content-Type": "application/json"};
   if (arrivalSettings().admin_token_required) {
-    const token = prompt("管理员口令：");
+    const token = adminToken();
     if (!token) { arrivalMessage("未输入管理员口令，尚未保存。输入已保留。"); return; }
     headers["X-Admin-Token"] = token;
   }
@@ -743,7 +775,7 @@ function totalMessage(text, kind = "") { const el = $("totalFeedback"); if (el) 
 function driverHeaders(json = true) {
   const headers = json ? {"Content-Type":"application/json"} : {};
   if (scoringSettings().admin_token_required) {
-    const token = prompt("管理员口令：");
+    const token = adminToken();
     if (!token) throw new Error("未输入管理员口令，操作未提交。");
     headers["X-Admin-Token"] = token;
   }
@@ -1027,12 +1059,36 @@ async function showSegment(id) {
 
 /* ---- shift actions (unchanged backend behaviour) ---- */
 async function closeAlert(id) {
-  const user = (prompt("手动确认 / 关闭这条告警。请输入您的姓名：") || "").trim(); if (!user) return;
+  const user = askName("手动确认 / 关闭这条告警。请输入您的姓名："); if (!user) return;
   const reason = (prompt("原因（例如：少的一袋留在车上已核实、已电话确认）：") || "").trim(); if (!reason) return;
   const headers = {"Content-Type": "application/json"};
-  if (state?.shift?.admin_token_required) headers["X-Admin-Token"] = prompt("管理员口令：") || "";
+  if (state?.shift?.admin_token_required) headers["X-Admin-Token"] = adminToken() || "";
   const r = await fetch(`/api/alerts/${id}/close`, {method: "POST", headers, body: JSON.stringify({user, reason})});
   if (!r.ok) { $("banners").insertAdjacentHTML("afterbegin", `<div class="banner bad">无法关闭：${esc((await r.json()).error)}</div>`); return; }
+  load();
+}
+
+async function hideTask(id, restore) {
+  const row = [...(state?.receiving || []), ...(state?.departures || []), ...(state?.hidden || [])].find((r) => String(r.segment_id) === String(id));
+  const label = row ? `${row.taskNo} ${row.placeOfOrigin || ""} → ${row.destination || ""}` : "#" + id;
+  const user = askName(`${restore ? "恢复显示" : "隐藏"}任务 ${label}。请输入您的姓名：`); if (!user) return;
+  const reason = restore ? "" : (prompt("隐藏原因（例如：不经过 BWI / 测试任务 / 已线下处理）：") || "").trim();
+  if (!restore && !reason) return;
+  const headers = {"Content-Type": "application/json"};
+  if (state?.shift?.admin_token_required) headers["X-Admin-Token"] = adminToken();
+  const r = await fetch(`/api/segments/${id}/${restore ? "unhide" : "hide"}`, {method: "POST", headers, body: JSON.stringify({user, reason})});
+  if (!r.ok) { $("banners").insertAdjacentHTML("afterbegin", `<div class="banner bad">操作被拒绝：${esc((await r.json()).error)}</div>`); return; }
+  load();
+}
+async function feishuMode(mode) {
+  const msg = mode === "live" ? "开始正式发送飞书？\n同一时间只能有一台电脑正式发送（Mac 和 Windows 不要同时开）。"
+                              : "改为测试模式？之后飞书只记录、不发送。";
+  if (!confirm(msg)) return;
+  const user = askName("请输入您的姓名："); if (!user) return;
+  const headers = {"Content-Type": "application/json"};
+  if (state?.shift?.admin_token_required) headers["X-Admin-Token"] = adminToken();
+  const r = await fetch("/api/feishu/mode", {method: "POST", headers, body: JSON.stringify({user, mode})});
+  if (!r.ok) { $("banners").insertAdjacentHTML("afterbegin", `<div class="banner bad">操作被拒绝：${esc((await r.json()).error)}</div>`); return; }
   load();
 }
 
@@ -1050,10 +1106,10 @@ async function shiftAction(action) {
   }
   const verb = {start: "开始监控（开启提醒，不改变任何卸车截止时间）", end: "结束班次并停止提醒",
                 opening: "确认仓库开门时间", "confirm-open": "确认班次仍在作业"}[action];
-  const user = (prompt(`${verb}。请输入您的姓名：`) || "").trim();
+  const user = askName(`${verb}。请输入您的姓名：`);
   if (!user) return;
   const headers = {"Content-Type": "application/json"};
-  if (state?.shift?.admin_token_required) headers["X-Admin-Token"] = prompt("管理员口令：") || "";
+  if (state?.shift?.admin_token_required) headers["X-Admin-Token"] = adminToken() || "";
   const r = await fetch(`/api/shift/${action}`, {method: "POST", headers, body: JSON.stringify({user, ...extra})});
   if (!r.ok) { $("banners").insertAdjacentHTML("afterbegin", `<div class="banner bad">操作被拒绝：${esc((await r.json()).error)}</div>`); return; }
   load();
@@ -1063,9 +1119,11 @@ document.addEventListener("click", async (e) => {
   if (e.target.closest("[data-score-task],[data-driver-total],[data-driver-print]")) return;
   const arrivalOpen = e.target.closest("[data-arrival-open]");
   if (arrivalOpen) { e.stopPropagation(); return showSegment(arrivalOpen.dataset.arrivalOpen); }
-  const t = e.target.closest("[data-shift],[data-ack],[data-close],[data-main],[data-origin],[data-send],[data-dep],[data-unl],[data-tab],[data-more],[data-clear],th[data-sort],tr[data-seg]");
+  const t = e.target.closest("[data-hide],[data-unhide],[data-feishu-mode],[data-shift],[data-ack],[data-close],[data-main],[data-origin],[data-send],[data-dep],[data-unl],[data-tab],[data-more],[data-clear],th[data-sort],tr[data-seg]");
   if (!t) return;
   if (t.dataset.clear) { $("q").value = ""; return renderAll(); }
+  if (t.dataset.hide || t.dataset.unhide) { e.stopPropagation(); return hideTask(t.dataset.hide || t.dataset.unhide, !!t.dataset.unhide); }
+  if (t.dataset.feishuMode) return feishuMode(t.dataset.feishuMode);
   if (t.dataset.main) { ui.main = t.dataset.main; ls.set("main-tab", ui.main); renderAll();
     if (ui.main === "scores" && state?.driver_scoring_enabled) loadDrivers(); return; }
   if (t.dataset.origin) { ui.origin = t.dataset.origin; ls.set("origin-tab", ui.origin); return renderAll(); }

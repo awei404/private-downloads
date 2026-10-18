@@ -47,6 +47,8 @@ class Engine:
         for seg in segments:
             if seg.get("_validity"):
                 removed[seg["id"]] = seg["_validity"]
+            elif seg.get("_hidden"):
+                removed[seg["id"]] = "HIDDEN"
             if not rules.in_window(seg, now):
                 aged_out.add(seg["id"])
             for f in rules.evaluate(seg, now, self.ctx):
@@ -57,6 +59,8 @@ class Engine:
                 aged = a["segment_id"] in aged_out and a["stage"] in (OVERDUE, CHECK)
                 validity = removed.get(a["segment_id"])
                 outcome = ("resolved: task voided in TMS (已作废)" if validity == "VOIDED"
+                           else "closed: task hidden on the dashboard by " + str(
+                               (self.store.hidden().get(a["segment_id"]) or {}).get("user")) if validity == "HIDDEN"
                            else "uncertain: task missing from TMS, validity unverified" if validity
                            else "unresolved: aged out of monitoring window" if aged else "cleared")
                 self.store.close_alert(a, now, outcome)

@@ -93,6 +93,14 @@ def _ref(found):
                       ensure_ascii=False)
 
 
+def feishu_test_mode(store, default=None):
+    """Test mode (record only, nothing sent): the dashboard switch (meta feishu_mode) wins over FEISHU_TEST_MODE."""
+    mode = store.get_meta("feishu_mode")
+    if mode in ("live", "test"):
+        return mode == "test"
+    return config.FEISHU_TEST_MODE if default is None else default
+
+
 def feishu_live(store):
     """Live Feishu delivery is authorized one shift at a time (--authorize-feishu-shift): true only while the
     shift that used the authorization is open, or for the morning reminder while an authorization waits."""

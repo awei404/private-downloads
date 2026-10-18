@@ -47,9 +47,10 @@ def _feishu_status(store):
     # read-only preview) shows those instead of its own environment.
     svc = json.loads(store.get_meta("service_feishu_config") or "null") or {}
     enabled = svc.get("enabled", config.FEISHU_ENABLED)
-    test_mode = svc.get("test_mode", config.FEISHU_TEST_MODE)
+    test_mode = shift.feishu_test_mode(store, svc.get("test_mode", config.FEISHU_TEST_MODE))
     return {
         "enabled": enabled, "test_mode": test_mode, "configured": configured,
+        "mode_switch": store.get_meta("feishu_mode"), "shift_authorization": config.FEISHU_SHIFT_AUTHORIZATION,
         "departure_enabled": svc.get("departure_enabled", config.FEISHU_DEPARTURE_ENABLED),
         "live_this_shift": enabled and not test_mode and shift.feishu_live(store),
         "authorization_pending": int(store.get_meta("feishu_shift_allowance") or 0) > 0,
@@ -111,7 +112,7 @@ def receiving_board(segs, by_task, unloading_rows, now):
     unl = {r["segment_id"]: r for r in unloading_rows}
     rows = []
     for seg in segs:
-        if seg.get("destination") != config.SITE_CODE or seg.get("_validity"):
+        if seg.get("destination") != config.SITE_CODE or seg.get("_validity") or seg.get("_hidden"):
             continue
         when, source, arrived = predict_arrival(seg, now)
         if when is None:
@@ -158,7 +159,7 @@ def departure_board(store, segs, now, muted_ids=None):
         by_task.setdefault(seg.get("taskNo"), []).append(seg)
     for seg in segs:
         m = departures.match(seg)
-        if not m or "unmatched" in m:
+        if not m or "unmatched" in m or seg.get("_hidden"):
             continue
         deadline = m["deadline"]
         manual = rules.seg_time(seg, "manualActualDepartureTimeStrFormat")
@@ -300,6 +301,16 @@ def driver_board(store, now, query=""):
     return data
 
 
+def hidden_rows(store, segs):
+    """Tasks hidden by hand, newest first, for the restore list on the receiving / departure tabs."""
+    rows = []
+    for seg_id, h in store.hidden().items():
+        seg = segs.get(seg_id) or {}
+        rows.append({"segment_id": seg_id, "board": "recv" if seg.get("destination") == config.SITE_CODE else "send",
+                     "at_et": fmt_et(from_iso(h["at"])), "user": h["user"], "reason": h["reason"], **_seg_brief(seg)})
+    return sorted(rows, key=lambda r: r["at_et"] or "", reverse=True)
+
+
 def build_state(store, now):
     last = store.last_poll()
     last_ok = store.last_poll(ok_only=True)
@@ -415,6 +426,7 @@ def build_state(store, now):
             "pending_start": len(pending),
         },
         "departures": board,
+        "hidden": hidden_rows(store, segs),
         "time_alerts": [a for a in open_alerts if _is_time(a["alert_type"])],
         "compliance_alerts": ops_open,
         "compliance": compliance[:300],
@@ -702,6 +714,34 @@ class Handler(BaseHTTPRequestHandler):
                         with open(os.path.join(folder, f"shift_report_session{ended}.md"), "w", encoding="utf-8") as fh:
                             fh.write(build(self.store, ended, now) + "\n")
                 return self._send(200, shifts.view(now))
+        if self.path == "/api/feishu/mode":  # dashboard switch: live sending / test mode (record only)
+            body = self._body()
+            if config.ADMIN_TOKEN and self.headers.get("X-Admin-Token") != config.ADMIN_TOKEN:
+                return self._send(403, {"error": "admin token required"})
+            user, mode = str(body.get("user") or "").strip()[:80], body.get("mode")
+            if not user or mode not in ("live", "test"):
+                return self._send(400, {"error": "user and mode (live|test) required"})
+            with self.lock:
+                self.store.set_meta("feishu_mode", mode)
+                self.store.shift_event("-", utcnow(), f"feishu mode set to {mode} on the dashboard", user)
+            return self._send(200, _feishu_status(self.store))
+        hide = re.fullmatch(r"/api/segments/([0-9]{1,18})/(hide|unhide)", self.path)
+        if hide:
+            body = self._body()
+            if config.ADMIN_TOKEN and self.headers.get("X-Admin-Token") != config.ADMIN_TOKEN:
+                return self._send(403, {"error": "admin token required"})
+            user, reason = str(body.get("user") or "").strip()[:80], str(body.get("reason") or "").strip()[:300]
+            seg_id = int(hide.group(1))
+            if not user or (hide.group(2) == "hide" and not reason):
+                return self._send(400, {"error": "name and reason required"})
+            with self.lock:
+                if hide.group(2) == "unhide":
+                    self.store.unhide_segment(seg_id, utcnow(), user)
+                else:
+                    if self.store.segment(seg_id) is None:
+                        return self._send(404, {"error": "task not found"})
+                    self.store.hide_segment(seg_id, utcnow(), user, reason)
+            return self._send(200, {"ok": True})
         parts = self.path.strip("/").split("/")  # api/alerts/<id>/ack | api/alerts/<id>/close
         if len(parts) == 4 and parts[:2] == ["api", "alerts"] and parts[3] == "close":
             body = self._body()

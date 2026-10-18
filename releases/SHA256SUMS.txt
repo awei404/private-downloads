@@ -1,1 +1,1 @@
-9a97af9432a55f691c192126e21c5ff121d2083a84faf0b8a8039774cde9f06a  BWI-Monitor-Windows.zip
+bd2cb841a2f7970241094399a6cfde9b7e23bd78205beb2cc457fb63c746bd68  BWI-Monitor-Windows.zip

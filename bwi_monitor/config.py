@@ -103,7 +103,9 @@ FEISHU_OP_TYPES = {t.strip() for t in os.environ.get("FEISHU_OP_TYPES", "OP:ARRI
 
 # Pilot safeguard: even with FEISHU_ENABLED and not in test mode, live delivery needs a per-shift authorization
 # (python3 -m bwi_monitor --authorize-feishu-shift). It is used by the next Start Shift and ends with End Shift.
-FEISHU_SHIFT_AUTHORIZATION = _bool("FEISHU_SHIFT_AUTHORIZATION", "true")
+# 2026-10-18: off by default. Live delivery = Feishu enabled + not test mode + a shift open (Start Shift). Set true to
+# go back to the pilot rule (one shift at a time, authorized with --authorize-feishu-shift).
+FEISHU_SHIFT_AUTHORIZATION = _bool("FEISHU_SHIFT_AUTHORIZATION", "false")
 
 
 def secret(env_name, file_path):

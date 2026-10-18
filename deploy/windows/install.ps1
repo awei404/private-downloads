@@ -100,6 +100,12 @@ try {
     }
   }
   Write-Host "6/6 Installation complete. Local backup: $backup"
+  $tokenLine = Get-Content $envPath | Where-Object { $_ -match '^\s*BWI_ADMIN_TOKEN\s*=' } | Select-Object -First 1
+  if ($tokenLine) {
+    Write-Host ""
+    Write-Host ("Dashboard admin password (asked once per browser): " + ($tokenLine -split '=',2)[1].Trim()) -ForegroundColor Yellow
+    Write-Host "Write it down. It is also in $envPath (BWI_ADMIN_TOKEN)."
+  }
   if (-not $NoStart -and -not $SkipSystemSetup) {
     $authPath = Join-Path $InstallDir 'secrets\gofo_auth'
     $authLine = Get-Content $envPath | Where-Object { $_ -match '^\s*GOFO_AUTH_FILE\s*=' } | Select-Object -First 1

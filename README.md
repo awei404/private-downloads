@@ -1,5 +1,13 @@
 # BWI TMS real-time alert monitor
 
+## 2026.10.18.1 · 不再需要命令
+
+- **飞书**：每个班次不再需要运行授权命令。点“上班 Start Shift”后自动正式发送，“下班 End Shift”后停止。正式发送 / 测试模式在监控台顶部“飞书 …⇄”标签点击切换（`FEISHU_SHIFT_AUTHORIZATION=true` 可恢复试运行时的逐班授权）。
+- **管理员口令、姓名**：每台电脑的浏览器只需输入一次，之后自动记住；口令改了会重新询问。Windows 安装结束时显示口令。
+- **隐藏任务**：收车、发车表格每行有“隐藏”（需姓名和原因）。隐藏后不显示、不提醒，已开的预警以“hidden”结束；表格下方“已隐藏的任务”可恢复；班次报告列出隐藏记录。
+- **监控中断提醒**：上班期间 TMS 登录失效或 25 分钟没有数据，飞书发“⛔ BWI 监控数据中断”，恢复后发“✅ 已恢复”。
+- **电脑睡眠后**：唤醒后立即拉取，不再等满 10 分钟（Mac 合盖会睡眠，请保持打开）。
+
 ## Windows 新版与 Check-in 打印（2026.10.17.1）
 
 [下载 Windows 最新 ZIP](https://github.com/awei404/private-downloads/releases/latest/download/BWI-Monitor-Windows.zip)。解压后双击 `Install-BWI-Monitor.bat` 安装或升级；本机数据库、凭证和设置保留，升级备份集中在安装目录 `backups`。详细步骤见 [Windows 说明](deploy/windows/README-Windows.md)。发布包不包含运营数据或凭证。

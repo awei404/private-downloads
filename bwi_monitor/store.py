@@ -49,6 +49,9 @@ CREATE TABLE IF NOT EXISTS notification_keys (key TEXT PRIMARY KEY, at TEXT);
 CREATE TABLE IF NOT EXISTS shift_events (
     op_date TEXT, at TEXT, event TEXT, user TEXT, detail TEXT
 );
+CREATE TABLE IF NOT EXISTS hidden_segments (  -- hidden by hand from the receiving / departure boards
+    segment_id INTEGER PRIMARY KEY, at TEXT, user TEXT, reason TEXT
+);
 CREATE TABLE IF NOT EXISTS notifications (
     id INTEGER PRIMARY KEY, alert_id INTEGER, at TEXT, channel TEXT, ok INTEGER, error TEXT, text TEXT
 );
@@ -158,12 +161,38 @@ class Store:
         return seg
 
     def segments(self):
-        return [self._seg(r) for r in self.db.execute("SELECT data, obs, validity, validity_detail FROM segments")]
+        hidden = self.hidden()
+        segs = [self._seg(r) for r in self.db.execute("SELECT data, obs, validity, validity_detail FROM segments")]
+        for seg in segs:
+            if seg.get("id") in hidden:
+                seg["_hidden"] = hidden[seg["id"]]
+        return segs
 
     def segment(self, seg_id):
         row = self.db.execute("SELECT data, obs, validity, validity_detail FROM segments WHERE id=?",
                               (seg_id,)).fetchone()
-        return self._seg(row) if row else None
+        if not row:
+            return None
+        seg = self._seg(row)
+        hidden = self.hidden().get(seg.get("id"))
+        if hidden:
+            seg["_hidden"] = hidden
+        return seg
+
+    # ---- hidden by hand: off the boards, no alerts, until restored ---------------------------------------
+    def hidden(self):
+        return {r["segment_id"]: {"at": r["at"], "user": r["user"], "reason": r["reason"]}
+                for r in self.db.execute("SELECT * FROM hidden_segments")}
+
+    def hide_segment(self, seg_id, now, user, reason):
+        self.db.execute("INSERT OR REPLACE INTO hidden_segments VALUES (?,?,?,?)", (seg_id, iso(now), user, reason))
+        self.shift_event("-", now, f"segment {seg_id} hidden", user, reason)
+
+    def unhide_segment(self, seg_id, now, user):
+        n = self.db.execute("DELETE FROM hidden_segments WHERE segment_id=?", (seg_id,)).rowcount
+        if n:
+            self.shift_event("-", now, f"segment {seg_id} restored", user)
+        return n
 
     def missing_since(self, poll_started, since):
         """Segments not returned by the poll that started at poll_started, still marked present, and

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 from unittest import mock
 
-from bwi_monitor import compliance, config, departures, feishu, rules, shift
+from bwi_monitor import compliance, config, departures, feishu, rules, shift, web
 from bwi_monitor.engine import Engine
 from bwi_monitor.rules import EASTERN
 from bwi_monitor.notify import Notifier
@@ -967,11 +967,61 @@ class NoticeRules(unittest.TestCase):
         self.assertTrue(self.texts()[0].startswith("🔴"))
 
     def test_live_feishu_only_for_the_authorized_shift(self):
+        with mock.patch.object(config, "FEISHU_SHIFT_AUTHORIZATION", True):  # pilot rule, opt-in since 2026-10-18
+            Shifts(self.store).end(et("2026-10-11 22:00:00"), "Wei")
+            Shifts(self.store).start(et("2026-10-11 22:10:00"), "Wei")  # next shift, no new authorization
+            self.engine().run(et("2026-10-11 22:31:00"), [self.branch()])
+            self.assertEqual(self.texts(), [])
+            self.assertEqual(self.store.last_delivery("feishu")["channel"], "feishu-test-mode")  # recorded, not sent
+
+    def test_every_shift_is_live_without_a_cli_authorization(self):
+        """2026-10-18: Start Shift alone turns live Feishu on; no --authorize-feishu-shift per shift."""
         Shifts(self.store).end(et("2026-10-11 22:00:00"), "Wei")
-        Shifts(self.store).start(et("2026-10-11 22:10:00"), "Wei")  # next shift, no new authorization
+        self.engine().run(et("2026-10-11 22:31:00"), [self.branch()])
+        self.assertEqual(self.texts(), [])                                   # no shift open: muted
+        Shifts(self.store).start(et("2026-10-11 22:40:00"), "Wei")
+        self.engine().run(et("2026-10-11 23:01:00"), [self.branch()])       # deadline passed: 🔴 goes out
+        self.assertEqual(len(self.texts()), 1)
+
+    def test_dashboard_feishu_switch_overrides_the_service_setting(self):
+        self.store.set_meta("feishu_mode", "test")
         self.engine().run(et("2026-10-11 22:31:00"), [self.branch()])
         self.assertEqual(self.texts(), [])
-        self.assertEqual(self.store.last_delivery("feishu")["channel"], "feishu-test-mode")  # recorded, not sent
+        self.assertEqual(self.store.last_delivery("feishu")["channel"], "feishu-test-mode")
+        self.store.set_meta("feishu_mode", "live")
+        self.engine().run(et("2026-10-11 23:01:00"), [self.branch()])       # deadline passed: 🔴 goes out
+        self.assertEqual(len(self.texts()), 1)
+
+    def test_feed_outage_and_recovery_reach_the_shift_group(self):
+        e = self.engine()
+        e.feed_status(et("2026-10-11 20:00:00"), "TMS login rejected (401 Unauthorized: token expired). Update GOFO_AUTH.")
+        e.feed_status(et("2026-10-11 20:01:00"), "TMS login rejected (401 again). Update GOFO_AUTH.")  # no repeat
+        e.feed_status(et("2026-10-11 20:10:00"), None)
+        self.assertEqual([t.split("\n")[0] for t in self.texts()], ["⛔ BWI 监控数据中断", "✅ BWI 监控数据已恢复，提醒继续。"])
+        self.assertIn("TMS 登录已失效", self.texts()[0])
+        Shifts(self.store).end(et("2026-10-11 21:00:00"), "Wei")         # no shift: outage stays on the dashboard only
+        e.feed_status(et("2026-10-11 22:00:00"), "No TMS data since 21:30 ET (no successful poll)")
+        e.feed_status(et("2026-10-11 22:30:00"), None)
+        self.assertEqual(len(self.texts()), 2)
+
+    def test_hidden_task_leaves_the_board_and_stops_alerts(self):
+        now = et("2026-10-11 22:31:00")
+        self.store.upsert_segments([self.branch()], now)
+        self.engine().run(now)
+        self.assertEqual(len(self.texts()), 1)                              # 30-min reminder sent
+        self.store.hide_segment(20, now, "Wei", "not a BWI task")
+        seg = self.store.segments()[0]
+        self.assertEqual(seg["_hidden"]["user"], "Wei")
+        self.assertEqual(rules.evaluate(seg, now), [])
+        later = et("2026-10-11 23:05:00")
+        self.engine().run(later)                                             # past the deadline: still quiet
+        self.assertEqual(len(self.texts()), 1)
+        self.assertEqual(self.store.open_alerts(), [])
+        self.assertTrue(self.store.latest_alert(20, "BRANCH_DEPARTURE")["outcome"].startswith("closed: task hidden"))
+        self.assertEqual(web.departure_board(self.store, self.store.segments(), later), [])
+        self.assertEqual([r["taskNo"] for r in web.hidden_rows(self.store, {20: seg})], ["MT2026101100900"])
+        self.store.unhide_segment(20, later, "Wei")
+        self.assertEqual(len(web.departure_board(self.store, self.store.segments(), later)), 1)
 
     def test_regression_MT2026101400730_no_departure_check_before_bwi_arrival(self):
         """CNO.H -> BWI.H -> JFK.H: the CNO leg has no manual check-in and no GPS arrival at BWI, so the BWI -> JFK

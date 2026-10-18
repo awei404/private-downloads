@@ -115,9 +115,11 @@ class Monitor:
         keep_awake()
         next_poll = 0.0
         while True:
-            if time.monotonic() >= next_poll:
+            # Wall clock, not monotonic: on macOS the monotonic clock stops while the computer sleeps, so after a wake
+            # the next poll would wait out the rest of the interval (2026-10-17: 25 min with stale data).
+            if time.time() >= next_poll:
                 self.poll()
-                next_poll = time.monotonic() + config.POLL_SECONDS
+                next_poll = time.time() + config.POLL_SECONDS
             now = utcnow()
             self.check_staleness(now)
             self.engine.run(now)

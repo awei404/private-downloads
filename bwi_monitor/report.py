@@ -165,6 +165,8 @@ def build(store, session_id=None, now=None):
          f"- Recorded without delivery (test mode / not authorized): {sum(1 for n in feishu if n['channel'].endswith('test-mode'))}",
          f"- Muted (shift closed): {sum(1 for n in notes if n['channel'] == 'muted')}",
          f"- Duplicates prevented (all time): {store.get_meta('duplicates_prevented') or 0}",
+         *(f"- Hidden on the dashboard: {e['event'].split()[1]} by {e['user']} — {e['detail']}" for e in reversed(store.shift_events(500))
+           if (e["event"] or "").endswith(" hidden") and a <= e["at"] <= b),
          *(f"  - failed {fmt(from_iso(n['at']))}: {n['error']}" for n in live if not n["ok"]),
          "", "## Accuracy review",
          "### Missing in TMS records (operation not recorded; verify before treating as a staff violation)",

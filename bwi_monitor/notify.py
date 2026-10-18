@@ -108,6 +108,18 @@ class Notifier:
             if kind == "NEW" and self.admin is not None and self.feishu_enabled:
                 self._feishu_now(self.admin, alert_id, now, "feishu-admin", f"⛔ BWI TMS 监控系统异常\n{f.reason}\n"
                                  f"时间：{now.astimezone(EASTERN):%m-%d %H:%M} ET")
+            elif self.admin is None and self.feishu and self.feishu_enabled and (self.enabled is None or self.enabled()):
+                # 2026-10-18: without an admin channel the shift group hears that monitoring stopped (TMS login
+                # expired, no data) and, only if it heard that, that it recovered.
+                at = f"时间：{now.astimezone(EASTERN):%m-%d %H:%M} ET"
+                if kind == "NEW":
+                    why = ("TMS 登录已失效，请更新监控电脑上的 TMS 登录凭证（secrets/gofo_auth）" if "login" in f.reason
+                           else f"超过 {config.STALE_AFTER_MINUTES} 分钟没有拿到 TMS 数据，请检查监控电脑是否开机、联网")
+                    self._feishu_now(self.feishu, alert_id, now, "feishu",
+                                     f"⛔ BWI 监控数据中断\n{why}。\n在恢复之前，监控台和飞书提醒都不是最新的。\n{at}")
+                elif kind == "RESOLVED" and any(n["channel"] == "feishu" and n["ok"]
+                                                for n in self.store.notifications_for([alert_id])):
+                    self._feishu_now(self.feishu, alert_id, now, "feishu", f"✅ BWI 监控数据已恢复，提醒继续。\n{at}")
             return
         msg = feishu.alert_message(seg, f, kind, now, self.data_as_of) if self.feishu else None
         if msg and self.feishu_enabled:
@@ -141,7 +153,7 @@ class Notifier:
 
     def _live(self):
         from . import shift
-        return not self.test_mode and shift.feishu_live(self.store)
+        return not shift.feishu_test_mode(self.store, self.test_mode) and shift.feishu_live(self.store)
 
     def _channel(self, name):
         return name if self._live() else name + "-test-mode"

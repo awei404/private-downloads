@@ -430,7 +430,8 @@ def evaluate(seg, now, ctx=None, compliance=True):
     """All findings for one segment: time rules plus, independently, operation compliance
     (alert types OP:*). Segments outside the lookback window return []."""
     from . import compliance as ops
-    if seg.get("_validity"):
+    if seg.get("_validity") or seg.get("_hidden"):
+        # Hidden by hand on the dashboard: off the boards and no alerts until restored.
         # VOIDED: TMS taskStatus 6 (已作废). UNVERIFIED: missing from TMS, status not confirmed. Either way no
         # deadlines, warnings or notices; the dashboard shows the segment as voided / validity unverified.
         return []
