@@ -1004,6 +1004,27 @@ class NoticeRules(unittest.TestCase):
         e.feed_status(et("2026-10-11 22:30:00"), None)
         self.assertEqual(len(self.texts()), 2)
 
+    def test_bwi_cargo_known_uncertain_and_by_hand(self):
+        multi = "Multiple loadings and multiple unloadings"
+        direct = unload_seg(loadBagCount=30, loadWaybillCount=8842, taskName="CNO.H-BWI.H(04:00)")
+        self.assertEqual(web.cargo(direct)[:3], (30, 8842, "loaded"))
+        cno_jfk = unload_seg(loadBagCount=30, loadWaybillCount=11409, placeOfOrigin="CNO.H", sortNum=1,
+                             handlingModeStr=multi, taskName="CNO.H-BWI.H-JFK.H(14:30)")
+        bags, _, source, note = web.cargo(cno_jfk)
+        self.assertEqual((bags, source), (None, None))                    # JFK cargo on board: BWI share unknown
+        self.assertIn("JFK", note)
+        ewr_loop = unload_seg(loadBagCount=28, loadWaybillCount=12318, placeOfOrigin="EWR.H", sortNum=1,
+                              handlingModeStr=multi, taskName="EWR.H-BWI.H-EWR.H(12:00)")
+        self.assertEqual(web.cargo(ewr_loop)[2], "loaded")                 # goes back to EWR: all cargo is BWI's
+        done = dict(cno_jfk, unLoadBagCount=17, unLoadWaybillCount=4110,
+                    unloadCompleteTimeStrFormat="2026-10-17 21:47:00 (Eastern Time)")
+        self.assertEqual(web.cargo(done)[:3], (17, 4110, "unloaded"))
+        self.store.set_manual_cargo(2, 12, None, "Wei", et("2026-10-11 10:00:00"))
+        manual = self.store.manual_cargo()[2]
+        self.assertEqual(web.cargo(cno_jfk, manual)[:3], (12, None, "manual"))
+        self.store.set_manual_cargo(2, None, None, "Wei", et("2026-10-11 10:05:00"))
+        self.assertEqual(self.store.manual_cargo(), {})
+
     def test_hidden_task_leaves_the_board_and_stops_alerts(self):
         now = et("2026-10-11 22:31:00")
         self.store.upsert_segments([self.branch()], now)
@@ -1083,9 +1104,14 @@ class NoticeRules(unittest.TestCase):
                                        estimationArrivalTime="2026-10-17 19:49:00")
         stale = unload_seg(id=4, taskNo="D", actualArrivalTime=None,
                            manualActualDepartureTimeStrFormat="2026-06-13 01:00:00 (Eastern Time)")
-        rows = {r["taskNo"]: r for r in web.receiving_board([arrived_last_night, arrived_before, en_route_tomorrow, stale],
-                                                            {}, [], now)}
-        self.assertEqual(sorted(rows), ["A", "C"])     # 18:50 belongs to yesterday; a June departure is stale
+        unloaded_before = unload_seg(id=5, taskNo="E", fenceActualArrivalTimeStrFormat="2026-10-16 18:40:00 (Eastern Time)",
+                                     unloadCompleteTimeStrFormat="2026-10-16 19:30:00 (Eastern Time)")
+        rows = {r["taskNo"]: r for r in web.receiving_board([arrived_last_night, arrived_before, en_route_tomorrow, stale,
+                                                             unloaded_before], {}, [], now)}
+        # 18:50 belongs to yesterday but is still being unloaded (no TMS unload-complete mark): it stays, as "prev".
+        # Unloaded yesterday (E) is gone; a June departure is stale.
+        self.assertEqual(sorted(rows), ["A", "B", "C"])
+        self.assertEqual((rows["B"]["bucket"], rows["B"]["unloading"]), ("prev", True))
         self.assertEqual((rows["A"]["arrived"], rows["A"]["bucket"]), (True, "today"))
         self.assertEqual((rows["C"]["arrived"], rows["C"]["departed"], rows["C"]["bucket"]), (False, True, "next"))
 

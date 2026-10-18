@@ -52,6 +52,9 @@ CREATE TABLE IF NOT EXISTS shift_events (
 CREATE TABLE IF NOT EXISTS hidden_segments (  -- hidden by hand from the receiving / departure boards
     segment_id INTEGER PRIMARY KEY, at TEXT, user TEXT, reason TEXT
 );
+CREATE TABLE IF NOT EXISTS cargo_manual (  -- BWI cargo entered by hand when TMS cannot tell (e.g. CNO-BWI-JFK)
+    segment_id INTEGER PRIMARY KEY, bags INTEGER, pieces INTEGER, at TEXT, user TEXT
+);
 CREATE TABLE IF NOT EXISTS notifications (
     id INTEGER PRIMARY KEY, alert_id INTEGER, at TEXT, channel TEXT, ok INTEGER, error TEXT, text TEXT
 );
@@ -178,6 +181,19 @@ class Store:
         if hidden:
             seg["_hidden"] = hidden
         return seg
+
+    # ---- cargo entered by hand ----------------------------------------------------------------------------
+    def manual_cargo(self):
+        return {r["segment_id"]: dict(r) for r in self.db.execute("SELECT * FROM cargo_manual")}
+
+    def set_manual_cargo(self, seg_id, bags, pieces, user, now):
+        """bags None clears the entry (back to the TMS figure)."""
+        if bags is None:
+            self.db.execute("DELETE FROM cargo_manual WHERE segment_id=?", (seg_id,))
+        else:
+            self.db.execute("INSERT OR REPLACE INTO cargo_manual VALUES (?,?,?,?,?)", (seg_id, bags, pieces, iso(now), user))
+        self.shift_event("-", now, f"segment {seg_id} cargo set by hand", user,
+                         "cleared" if bags is None else f"{bags} bags, {pieces} pieces")
 
     # ---- hidden by hand: off the boards, no alerts, until restored ---------------------------------------
     def hidden(self):

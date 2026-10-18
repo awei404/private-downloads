@@ -6,7 +6,7 @@ import re
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '2026.10.18.1'
+VERSION = '2026.10.18.2'
 WINDOWS_FILES = ('install.ps1','uninstall.ps1','run_bwi.bat','Install-BWI-Monitor.bat',
                  'Uninstall-BWI-Monitor.bat','env.windows.example','README-Windows.md','Download-Windows.bat')
 

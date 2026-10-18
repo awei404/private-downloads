@@ -9,7 +9,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from ipaddress import ip_address
 from urllib.parse import parse_qs, unquote, urlsplit
 
-from . import config, departures, driver_arrivals, driver_export, driver_print, driver_scores, rules, shift
+from . import compliance, config, departures, driver_arrivals, driver_export, driver_print, driver_scores, rules, shift
 from .engine import SYSTEM_SEGMENT, rank
 from .rules import fmt_et
 from .store import Store, from_iso, utcnow
@@ -104,7 +104,33 @@ def receiving_window(now):
     return day, at(day - timedelta(days=1)), at(day)
 
 
-def receiving_board(segs, by_task, unloading_rows, now):
+def route_stops(seg):
+    """Stops from the task name, e.g. "CNO.H-BWI.H-JFK.H(14:30)" -> ["CNO.H", "BWI.H", "JFK.H"]."""
+    return [s.strip() for s in (seg.get("taskName") or "").split("(")[0].split("-") if s.strip()]
+
+
+def cargo(seg, manual=None):
+    """BWI cargo of one inbound truck: (bags, pieces, source, note). source: manual (entered by hand) | unloaded
+    (TMS unload complete: what BWI actually unloaded) | loaded (all cargo on the leg is for BWI) | None (TMS
+    cannot tell: the truck goes on to another stop with cargo loaded before BWI, e.g. CNO-BWI-JFK)."""
+    if manual:
+        return manual["bags"], manual["pieces"], "manual", f"{manual['user']} 手填"
+    if seg.get("unloadCompleteTimeStrFormat") and seg.get("unLoadBagCount"):
+        return seg["unLoadBagCount"], seg.get("unLoadWaybillCount"), "unloaded", "TMS 实卸"
+    bags, pieces = seg.get("loadBagCount"), seg.get("loadWaybillCount")
+    if not bags:
+        return None, None, None, "TMS 无装车数量"
+    if rules._multi_unload(seg):
+        stops, k = route_stops(seg), seg.get("sortNum") or 0
+        if not (0 < k < len(stops) and stops[k] == config.SITE_CODE and stops[k - 1] == seg.get("placeOfOrigin")):
+            return None, None, None, f"装车 {bags} 袋，串点线路无法确认 BWI 货量"
+        onward = [s for s in stops[k + 1:] if s != seg.get("placeOfOrigin")]
+        if onward:
+            return None, None, None, f"装车 {bags} 袋含 {'、'.join(dict.fromkeys(s.replace('.H', '') for s in onward))} 的货"
+    return bags, pieces, "loaded", "TMS 装车"
+
+
+def receiving_board(segs, by_task, unloading_rows, now, manual_cargo=None):
     """Trucks into BWI for the receiving board: arrivals inside the current receiving window, every truck that has
     left its origin and is still on the way (any day; departed within IN_TRANSIT_MAX_DAYS), and not-yet-departed
     trucks predicted to arrive inside the window. Each row says which receiving day it belongs to."""
@@ -123,8 +149,14 @@ def receiving_board(segs, by_task, unloading_rows, now):
         except rules.BadTime:
             dep, planned_arr = None, None
         in_window = start <= when < end
+        try:
+            complete = rules.seg_time(seg, "unloadCompleteTimeStrFormat") if arrived else None
+        except rules.BadTime:
+            complete = None
+        unloading = bool(arrived and complete is None and not compliance._left_bwi(seg, {"by_task": by_task}))
         if arrived:
-            if not in_window:
+            # still unloading from the previous window (arrived within 24 h) stays on the board
+            if not in_window and not (unloading and when < start and now - when < timedelta(hours=24)):
                 continue
         elif dep is not None:
             if now - dep > timedelta(days=config.IN_TRANSIT_MAX_DAYS):
@@ -132,12 +164,14 @@ def receiving_board(segs, by_task, unloading_rows, now):
         elif not in_window and not (when < start and now - when < timedelta(days=1)):
             continue
         late = not arrived and when < now
-        bucket = ("today" if in_window else "next" if end <= when < end + timedelta(days=1)
+        bucket = ("today" if in_window else "prev" if arrived else "next" if end <= when < end + timedelta(days=1)
                   else "later" if when >= end else "overdue")
         legs = by_task.get(seg.get("taskNo"), [])
         chain = len(legs) >= 2 or len((seg.get("taskName") or "").split("(")[0].split("-")) > 2
         u = unl.get(seg["id"], {})
-        rows.append({"segment_id": seg["id"], "taskNo": seg.get("taskNo"), "licensePlateNo": seg.get("licensePlateNo"),
+        bags, pieces, qty_source, qty_note = cargo(seg, (manual_cargo or {}).get(seg["id"]))
+        rows.append({"unloading": unloading, "unload_complete_et": fmt_et(complete) if complete else None,
+                     "qty_bags": bags, "qty_pieces": pieces, "qty_source": qty_source, "qty_note": qty_note,"segment_id": seg["id"], "taskNo": seg.get("taskNo"), "licensePlateNo": seg.get("licensePlateNo"),
                      "origin": seg.get("placeOfOrigin"), "placeOfOrigin": seg.get("placeOfOrigin"),
                      "destination": seg.get("destination"), "taskName": seg.get("taskName"),
                      "kind": "串点" if chain else "单站", "arrived": arrived, "departed": dep is not None,
@@ -362,7 +396,7 @@ def build_state(store, now):
 
     ops_open = [a for a in open_alerts if not _is_time(a["alert_type"]) and a["segment_id"] != SYSTEM_SEGMENT]
     board = departure_board(store, list(segs.values()), now)
-    receiving = receiving_board(list(segs.values()), by_task, unloading, now)
+    receiving = receiving_board(list(segs.values()), by_task, unloading, now, store.manual_cargo())
     arrival_records, appointments = store.driver_arrivals.snapshot()
     scoring = store.driver_scores.snapshot()
     for row in board + receiving + unloading:
@@ -725,6 +759,23 @@ class Handler(BaseHTTPRequestHandler):
                 self.store.set_meta("feishu_mode", mode)
                 self.store.shift_event("-", utcnow(), f"feishu mode set to {mode} on the dashboard", user)
             return self._send(200, _feishu_status(self.store))
+        qty = re.fullmatch(r"/api/segments/([0-9]{1,18})/cargo", self.path)
+        if qty:  # BWI cargo by hand: {"user", "bags", "pieces"}; bags null clears it
+            body = self._body()
+            if config.ADMIN_TOKEN and self.headers.get("X-Admin-Token") != config.ADMIN_TOKEN:
+                return self._send(403, {"error": "admin token required"})
+            user = str(body.get("user") or "").strip()[:80]
+            try:
+                bags = None if body.get("bags") in (None, "") else int(body["bags"])
+                pieces = None if body.get("pieces") in (None, "") else int(body["pieces"])
+                assert user and (bags is None or 0 <= bags <= 10000) and (pieces is None or 0 <= pieces <= 1000000)
+            except (ValueError, TypeError, AssertionError):
+                return self._send(400, {"error": "name and a whole number of bags (pieces optional) required"})
+            with self.lock:
+                if self.store.segment(int(qty.group(1))) is None:
+                    return self._send(404, {"error": "task not found"})
+                self.store.set_manual_cargo(int(qty.group(1)), bags, pieces, user, utcnow())
+            return self._send(200, {"ok": True})
         hide = re.fullmatch(r"/api/segments/([0-9]{1,18})/(hide|unhide)", self.path)
         if hide:
             body = self._body()

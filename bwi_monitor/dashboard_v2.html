@@ -211,7 +211,10 @@
     <h3 class="subhead">未到达 <span class="small" id="comingCount"></span></h3>
     <div class="tablewrap"><table id="recvComing"></table></div>
     <div class="more" id="recvComingMore"></div>
-    <h3 class="subhead">已到达 <span class="small" id="arrivedCount"></span></h3>
+    <h3 class="subhead">卸车中 <span class="small" id="unloadingCount"></span> <span class="small">· 已到达、TMS 尚未标记卸车完成</span></h3>
+    <div class="tablewrap"><table id="recvUnloading"></table></div>
+    <div class="more" id="recvUnloadingMore"></div>
+    <h3 class="subhead">已到达（卸车完成） <span class="small" id="arrivedCount"></span></h3>
     <div class="tablewrap"><table id="recvArrived"></table></div>
     <div class="more" id="recvArrivedMore"></div>
     <details class="hiddenlist" id="hidden-recv" hidden><summary></summary><div></div></details>
@@ -447,66 +450,86 @@ function renderDepartures(s) {
 /* ---- D: receiving (by origin; arrived / not arrived; predicted arrival) ---- */
 const UNL_TAG = {overdue: "t-bad", warn: "t-urgent", working: "t-info", open: "t-warn", pending: "t-idle", done: "t-ok", qty: "t-warn",
                  late: "t-bad", uncertain: "t-idle", unknown: "t-idle"};
-const BUCKET = {today: ["t-info", "今日"], next: ["t-idle", "次日"], later: ["t-idle", "更晚"], overdue: ["t-bad", "已过预计"]};
+const BUCKET = {prev: ["t-idle", "前一班次"], today: ["t-info", "今日"], next: ["t-idle", "次日"], later: ["t-idle", "更晚"], overdue: ["t-bad", "已过预计"]};
+const fmtN = (n) => n == null ? "—" : Number(n).toLocaleString("en-US");
+function qtySum(rows) {   // bags / pieces of trucks whose BWI cargo is known; the rest are counted as "to confirm"
+  const known = rows.filter((r) => r.qty_bags != null);
+  return {bags: known.reduce((a, r) => a + r.qty_bags, 0), pieces: known.reduce((a, r) => a + (r.qty_pieces || 0), 0),
+          unknown: rows.length - known.length};
+}
+const QTY_SRC = {manual: "手填", unloaded: "实卸", loaded: "装车"};
+function qtyCell(r) {
+  const edit = r.qty_source === "unloaded" ? "" : ` <button class="btn plain mini" data-cargo="${r.segment_id}" title="手动输入这辆车到 BWI 的货量">${r.qty_source === "manual" ? "改" : r.qty_bags == null ? "填写" : "✎"}</button>`;
+  if (r.qty_bags == null) return `<span class="tag t-warn" title="${esc(r.qty_note)}">待确认</span> <span class="small">${esc(r.qty_note)}</span>${edit}`;
+  return `<b class="mono">${fmtN(r.qty_bags)} 袋</b><span class="small"> · ${fmtN(r.qty_pieces)} 件 · ${esc(QTY_SRC[r.qty_source] || "")}${r.qty_source === "manual" ? "（" + esc(r.qty_note) + "）" : ""}</span>${edit}`;
+}
 function renderReceiving(s) {
   const w = s.receiving_window || {};
   $("recvWindow").innerHTML = `<b>今日收车窗口（${esc(w.day)}）：${esc(md(w.start_et))} – ${esc(md(w.end_et))} ET</b> · 前一天 19:00 后到 BWI 的车计入当天`;
   const all = s.receiving.filter(matches);
-  // 今日收车 = this shift only (19:00 yesterday to 19:00 today), by arrival time or predicted arrival time.
-  const todays = all.filter((r) => r.bucket === "today");
+  // 今日收车 = this shift (19:00 yesterday to 19:00 today, by arrival or predicted arrival) plus trucks from the
+  // previous window that are still being unloaded.
+  const mine = (r) => r.bucket === "today" || (r.bucket === "prev" && r.unloading);
+  const todays = all.filter(mine);
   const origins = [...new Set(s.receiving.map((r) => r.origin))].sort((a, b) =>
     s.receiving.filter((r) => r.origin === b).length - s.receiving.filter((r) => r.origin === a).length);
   if (ui.origin !== "today" && !origins.includes(ui.origin)) ui.origin = "today";
   const tab = (k, label, rows) => `<button data-origin="${k}" class="${ui.origin === k ? "on" : ""}">${esc(label)}<span class="n">${rows.filter((r) => r.arrived).length}/${rows.length}</span></button>`;
   $("originTabs").innerHTML = tab("today", "今日收车（本班次）", todays) + origins.map((o) => tab(o, o.replace(/\.H$/, ""), all.filter((r) => r.origin === o))).join("");
-  // 今日收车: this window's work. Origin tab: everything from that origin that has left and is not here yet, plus
-  // what arrived in this window.
   const rows = ui.origin === "today" ? todays : all.filter((r) => r.origin === ui.origin);
-  const coming = rows.filter((r) => !r.arrived), arrived = rows.filter((r) => r.arrived);
-  const sum = (label, n, cls) => `<div class="prog"><div class="small">${label}</div><div class="c" style="color:${cls || "inherit"}">${n}</div></div>`;
-  const shift = rows.filter((r) => r.bucket === "today");
+  const coming = rows.filter((r) => !r.arrived), unloading = rows.filter((r) => r.arrived && r.unloading),
+        done = rows.filter((r) => r.arrived && !r.unloading);
+  const sum = (label, n, cls, sub) => `<div class="prog"><div class="small">${label}</div><div class="c" style="color:${cls || "inherit"}">${n}</div>${sub ? `<div class="small">${sub}</div>` : ""}</div>`;
+  const shift = rows.filter(mine), qty = (list, label, cls) => { const q = qtySum(list);
+    return sum(label, `${fmtN(q.bags)} 袋`, cls, `${fmtN(q.pieces)} 件${q.unknown ? ` · <b style="color:var(--warn, #b7791f)">${q.unknown} 辆待确认</b>` : ""}`); };
   const cards = [
-    sum("本班次应收", shift.length), sum("已到达", shift.filter((r) => r.arrived).length, "var(--ok)"),
-    sum("在途未到", shift.filter((r) => !r.arrived && r.departed).length),
-    sum("未发车", shift.filter((r) => !r.arrived && !r.departed).length),
-    sum("已过预计仍未到", shift.filter((r) => !r.arrived && r.late).length, "var(--bad)")];
+    sum("本班次应收", `${shift.length} 辆`), sum("未到达", shift.filter((r) => !r.arrived).length),
+    sum("卸车中", shift.filter((r) => r.arrived && r.unloading).length, "var(--info, #2b6cb0)"),
+    sum("已到达·卸完", shift.filter((r) => r.arrived && !r.unloading).length, "var(--ok)"),
+    sum("已过预计仍未到", shift.filter((r) => !r.arrived && r.late).length, "var(--bad)"),
+    qty(shift, "总货量"), qty(shift.filter((r) => r.arrived), "已到达货量", "var(--ok)"), qty(shift.filter((r) => !r.arrived), "未到达货量")];
   if (ui.origin !== "today") {   // the origin tab also counts what falls outside this shift
-    const out = rows.filter((r) => r.bucket !== "today");
-    cards.push(sum("班次外在途", out.length), sum("其中预计晚于本班次", out.filter((r) => r.bucket === "next" || r.bucket === "later").length),
-               sum("其中早于本班次仍未到", out.filter((r) => r.bucket === "overdue").length, "var(--bad)"));
+    const out = rows.filter((r) => !mine(r));
+    cards.push(sum("班次外在途", out.length), qty(out, "班次外货量"));
   }
   $("recvSummary").innerHTML = cards.join("");
-  $("comingCount").textContent = `${coming.length} 辆`; $("arrivedCount").textContent = `${arrived.length} 辆`;
+  $("comingCount").textContent = `${coming.length} 辆`; $("unloadingCount").textContent = `${unloading.length} 辆`; $("arrivedCount").textContent = `${done.length} 辆`;
   const etaCell = (r) => { const left = new Date(r.time).getTime() - serverNow();
     return left < 0 ? `<span class="cd bad">已过预计 ${hhmmss(left)}</span>` : `<span class="cd ok" data-eta="${r.time}">${hhmmss(left)}</span>`; };
+  const hide = {h: "", k: "hide", sort: false, f: (r) => `<button class="btn plain mini" data-hide="${r.segment_id}" title="不需要出现在这里的任务：隐藏后也不再提醒，可在下方“已隐藏”恢复">隐藏</button>`};
+  const qtyCol = {h: "货量（BWI）", k: "qty_bags", f: qtyCell};
+  const base = [
+    {h: "任务编号", k: "taskNo", f: (r) => `<span class="mono">${esc(r.taskNo)}</span>`},
+    {h: "始发地", k: "origin", f: (r) => esc(r.origin)},
+    {h: "车牌号", k: "licensePlateNo", f: (r) => esc(r.licensePlateNo)},
+    {h: "类型", k: "kind", f: (r) => esc(r.kind)}];
+  const arrivedAt = {h: "到达时间 (ET)", k: "time", f: (r) => `<b class="mono">${md(r.time_et)}</b> <span class="small">${esc(r.source.replace("实际到达·", ""))}</span>`};
+  const unlTag = {h: "卸车状态", k: "unload_key", f: (r) => `<span class="tag ${UNL_TAG[r.unload_key] || "t-idle"}">${esc(r.unload_status || "—")}</span>`};
   render("recvComing", "recvComingMore", [
     {h: "归属", k: "bucket", f: (r) => `<span class="tag ${BUCKET[r.bucket][0]}">${BUCKET[r.bucket][1]}</span>`},
-    {h: "任务编号", k: "taskNo", f: (r) => `<span class="mono">${esc(r.taskNo)}</span>`},
-    {h: "始发地", k: "origin", f: (r) => esc(r.origin)},
-    {h: "车牌号", k: "licensePlateNo", f: (r) => esc(r.licensePlateNo)},
-    {h: "类型", k: "kind", f: (r) => esc(r.kind)},
+    ...base,
     {h: "始发地发车 (ET)", k: "origin_departed_et", f: (r) => r.origin_departed_et ? `<span class="mono">${md(r.origin_departed_et)}</span>` : `<span class="small">未发车</span>`},
-    {h: "计划到达 (ET)", k: "planned_arrival_et", f: (r) => `<span class="mono">${md(r.planned_arrival_et)}</span>`},
     {h: "预计到达 (ET)", k: "time", f: (r) => `<b class="mono">${md(r.time_et)}</b> <span class="small">${esc(r.source)}</span>`},
     {h: "距到达", k: "time", cls: "mono", f: etaCell},
-    {h: "车辆状态", k: "vehicle_status", f: (r) => `<span class="small">${esc(r.vehicle_status)}</span>`},
-    {h: "", k: "hide", sort: false, f: (r) => `<button class="btn plain mini" data-hide="${r.segment_id}" title="不需要出现在这里的任务：隐藏后也不再提醒，可在下方“已隐藏”恢复">隐藏</button>`},
+    qtyCol, hide,
   ], coming, {all: ui.comingAll, flag: "comingAll", empty: ui.origin === "today" ? "本班次没有待到达的车" : "该始发地没有在途车辆",
      rowClass: (r) => r.late ? "r-warn" : r.bucket !== "today" ? "r-future" : ""});
-  render("recvArrived", "recvArrivedMore", [
-    {h: "任务编号", k: "taskNo", f: (r) => `<span class="mono">${esc(r.taskNo)}</span>`},
-    {h: "始发地", k: "origin", f: (r) => esc(r.origin)},
-    {h: "车牌号", k: "licensePlateNo", f: (r) => esc(r.licensePlateNo)},
-    {h: "类型", k: "kind", f: (r) => esc(r.kind)},
-    {h: "到达时间 (ET)", k: "time", f: (r) => `<b class="mono">${md(r.time_et)}</b> <span class="small">${esc(r.source.replace("实际到达·", ""))}</span>`},
+  render("recvUnloading", "recvUnloadingMore", [
+    ...base, arrivedAt,
     {h: "卸车进度", k: "progress", f: (r) => esc(r.progress)},
     {h: "首枪截止 (ET)", k: "first_scan_deadline", f: (r) => `<span class="mono">${md(r.first_scan_deadline_et)}</span>`},
     {h: "剩余", k: "first_scan_deadline", cls: "mono", f: (r) => ["open", "working", "warn"].includes(r.unload_key)
        ? `<span class="cd ${countdown(r.first_scan_deadline).cls}" data-cd="${r.first_scan_deadline}">${countdown(r.first_scan_deadline).text}</span>` : "—"},
-    {h: "卸车状态", k: "unload_key", f: (r) => `<span class="tag ${UNL_TAG[r.unload_key] || "t-idle"}">${esc(r.unload_status || "—")}</span>`},
-    {h: "", k: "hide", sort: false, f: (r) => `<button class="btn plain mini" data-hide="${r.segment_id}" title="不需要出现在这里的任务：隐藏后也不再提醒，可在下方“已隐藏”恢复">隐藏</button>`},
-  ], arrived, {all: ui.arrivedAll, flag: "arrivedAll", empty: "本窗口还没有到达的车",
-     rowClass: (r) => ({overdue: "r-overdue", warn: "r-warn", done: "r-done"})[r.unload_key] || ""});
+    unlTag, qtyCol, hide,
+  ], unloading, {all: ui.unloadingAll, flag: "unloadingAll", empty: "没有正在卸车的车（TMS 尚未标记卸车完成的已到车辆显示在这里）",
+     rowClass: (r) => ({overdue: "r-overdue", warn: "r-warn"})[r.unload_key] || ""});
+  render("recvArrived", "recvArrivedMore", [
+    ...base, arrivedAt,
+    {h: "卸完时间 (ET)", k: "unload_complete_et", f: (r) => `<span class="mono">${md(r.unload_complete_et)}</span>`},
+    {h: "卸车数量", k: "progress", f: (r) => esc(String(r.progress || "—").replace(/^首枪已扫描（(\d+) 袋）$/, "已卸 $1 袋"))},
+    unlTag, qtyCol, hide,
+  ], done, {all: ui.arrivedAll, flag: "arrivedAll", empty: "本窗口还没有卸完的车",
+     rowClass: (r) => ({overdue: "r-overdue", late: "r-overdue", qty: "r-warn"})[r.unload_key] || "r-done"});
   renderHidden(s, "recv");
 }
 function renderHidden(s, board) {
@@ -1068,6 +1091,22 @@ async function closeAlert(id) {
   load();
 }
 
+async function editCargo(id) {
+  const row = (state?.receiving || []).find((r) => String(r.segment_id) === String(id)); if (!row) return;
+  const bags = prompt(`${row.taskNo}（${row.origin} → BWI）到 BWI 的货量：袋数\n${row.qty_note ? "TMS：" + row.qty_note + "\n" : ""}留空 = 清除手填，恢复 TMS 数字`,
+                      row.qty_source === "manual" ? row.qty_bags : "");
+  if (bags === null) return;
+  const pieces = bags.trim() === "" ? "" : prompt("件数（不知道可留空）：", row.qty_source === "manual" && row.qty_pieces != null ? row.qty_pieces : "");
+  if (pieces === null) return;
+  if (!/^\d*$/.test(bags.trim()) || !/^\d*$/.test(String(pieces).trim())) { alert("请输入整数"); return; }
+  const user = askName("请输入您的姓名："); if (!user) return;
+  const headers = {"Content-Type": "application/json"};
+  if (state?.shift?.admin_token_required) headers["X-Admin-Token"] = adminToken();
+  const r = await fetch(`/api/segments/${id}/cargo`, {method: "POST", headers,
+    body: JSON.stringify({user, bags: bags.trim() === "" ? null : Number(bags), pieces: String(pieces).trim() === "" ? null : Number(pieces)})});
+  if (!r.ok) { $("banners").insertAdjacentHTML("afterbegin", `<div class="banner bad">无法保存：${esc((await r.json()).error)}</div>`); return; }
+  load();
+}
 async function hideTask(id, restore) {
   const row = [...(state?.receiving || []), ...(state?.departures || []), ...(state?.hidden || [])].find((r) => String(r.segment_id) === String(id));
   const label = row ? `${row.taskNo} ${row.placeOfOrigin || ""} → ${row.destination || ""}` : "#" + id;
@@ -1119,9 +1158,10 @@ document.addEventListener("click", async (e) => {
   if (e.target.closest("[data-score-task],[data-driver-total],[data-driver-print]")) return;
   const arrivalOpen = e.target.closest("[data-arrival-open]");
   if (arrivalOpen) { e.stopPropagation(); return showSegment(arrivalOpen.dataset.arrivalOpen); }
-  const t = e.target.closest("[data-hide],[data-unhide],[data-feishu-mode],[data-shift],[data-ack],[data-close],[data-main],[data-origin],[data-send],[data-dep],[data-unl],[data-tab],[data-more],[data-clear],th[data-sort],tr[data-seg]");
+  const t = e.target.closest("[data-cargo],[data-hide],[data-unhide],[data-feishu-mode],[data-shift],[data-ack],[data-close],[data-main],[data-origin],[data-send],[data-dep],[data-unl],[data-tab],[data-more],[data-clear],th[data-sort],tr[data-seg]");
   if (!t) return;
   if (t.dataset.clear) { $("q").value = ""; return renderAll(); }
+  if (t.dataset.cargo) { e.stopPropagation(); return editCargo(t.dataset.cargo); }
   if (t.dataset.hide || t.dataset.unhide) { e.stopPropagation(); return hideTask(t.dataset.hide || t.dataset.unhide, !!t.dataset.unhide); }
   if (t.dataset.feishuMode) return feishuMode(t.dataset.feishuMode);
   if (t.dataset.main) { ui.main = t.dataset.main; ls.set("main-tab", ui.main); renderAll();
