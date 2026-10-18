@@ -452,16 +452,15 @@ const UNL_TAG = {overdue: "t-bad", warn: "t-urgent", working: "t-info", open: "t
                  late: "t-bad", uncertain: "t-idle", unknown: "t-idle"};
 const BUCKET = {prev: ["t-idle", "前一班次"], today: ["t-info", "今日"], next: ["t-idle", "次日"], later: ["t-idle", "更晚"], overdue: ["t-bad", "已过预计"]};
 const fmtN = (n) => n == null ? "—" : Number(n).toLocaleString("en-US");
-function qtySum(rows) {   // bags / pieces of trucks whose BWI cargo is known; the rest are counted as "to confirm"
-  const known = rows.filter((r) => r.qty_bags != null);
-  return {bags: known.reduce((a, r) => a + r.qty_bags, 0), pieces: known.reduce((a, r) => a + (r.qty_pieces || 0), 0),
-          unknown: rows.length - known.length};
+function qtySum(rows) {   // 票数 of trucks whose BWI cargo is known; the rest are counted as "to confirm"
+  const known = rows.filter((r) => r.qty_pieces != null);
+  return {pieces: known.reduce((a, r) => a + r.qty_pieces, 0), unknown: rows.length - known.length};
 }
 const QTY_SRC = {manual: "手填", unloaded: "实卸", loaded: "装车"};
 function qtyCell(r) {
-  const edit = r.qty_source === "unloaded" ? "" : ` <button class="btn plain mini" data-cargo="${r.segment_id}" title="手动输入这辆车到 BWI 的货量">${r.qty_source === "manual" ? "改" : r.qty_bags == null ? "填写" : "✎"}</button>`;
-  if (r.qty_bags == null) return `<span class="tag t-warn" title="${esc(r.qty_note)}">待确认</span> <span class="small">${esc(r.qty_note)}</span>${edit}`;
-  return `<b class="mono">${fmtN(r.qty_bags)} 袋</b><span class="small"> · ${fmtN(r.qty_pieces)} 件 · ${esc(QTY_SRC[r.qty_source] || "")}${r.qty_source === "manual" ? "（" + esc(r.qty_note) + "）" : ""}</span>${edit}`;
+  const edit = r.qty_source === "unloaded" ? "" : ` <button class="btn plain mini" data-cargo="${r.segment_id}" title="手动输入这辆车到 BWI 的票数">${r.qty_source === "manual" ? "改" : r.qty_pieces == null ? "填写" : "✎"}</button>`;
+  if (r.qty_pieces == null) return `<span class="tag t-warn" title="${esc(r.qty_note)}">待确认</span> <span class="small">${esc(r.qty_note)}</span>${edit}`;
+  return `<b class="mono">${fmtN(r.qty_pieces)} 票</b><span class="small"> · ${esc(QTY_SRC[r.qty_source] || "")}${r.qty_source === "manual" ? "（" + esc(r.qty_note) + "）" : ""}</span>${edit}`;
 }
 function renderReceiving(s) {
   const w = s.receiving_window || {};
@@ -481,23 +480,23 @@ function renderReceiving(s) {
         done = rows.filter((r) => r.arrived && !r.unloading);
   const sum = (label, n, cls, sub) => `<div class="prog"><div class="small">${label}</div><div class="c" style="color:${cls || "inherit"}">${n}</div>${sub ? `<div class="small">${sub}</div>` : ""}</div>`;
   const shift = rows.filter(mine), qty = (list, label, cls) => { const q = qtySum(list);
-    return sum(label, `${fmtN(q.bags)} 袋`, cls, `${fmtN(q.pieces)} 件${q.unknown ? ` · <b style="color:var(--warn, #b7791f)">${q.unknown} 辆待确认</b>` : ""}`); };
+    return sum(label, `${fmtN(q.pieces)} 票`, cls, q.unknown ? `<b style="color:var(--warn)">另有 ${q.unknown} 辆待确认</b>` : ""); };
   const cards = [
     sum("本班次应收", `${shift.length} 辆`), sum("未到达", shift.filter((r) => !r.arrived).length),
     sum("卸车中", shift.filter((r) => r.arrived && r.unloading).length, "var(--info, #2b6cb0)"),
     sum("已到达·卸完", shift.filter((r) => r.arrived && !r.unloading).length, "var(--ok)"),
     sum("已过预计仍未到", shift.filter((r) => !r.arrived && r.late).length, "var(--bad)"),
-    qty(shift, "总货量"), qty(shift.filter((r) => r.arrived), "已到达货量", "var(--ok)"), qty(shift.filter((r) => !r.arrived), "未到达货量")];
+    qty(shift, "总票数"), qty(shift.filter((r) => r.arrived), "已到达票数", "var(--ok)"), qty(shift.filter((r) => !r.arrived), "未到达票数")];
   if (ui.origin !== "today") {   // the origin tab also counts what falls outside this shift
     const out = rows.filter((r) => !mine(r));
-    cards.push(sum("班次外在途", out.length), qty(out, "班次外货量"));
+    cards.push(sum("班次外在途", out.length), qty(out, "班次外票数"));
   }
   $("recvSummary").innerHTML = cards.join("");
   $("comingCount").textContent = `${coming.length} 辆`; $("unloadingCount").textContent = `${unloading.length} 辆`; $("arrivedCount").textContent = `${done.length} 辆`;
   const etaCell = (r) => { const left = new Date(r.time).getTime() - serverNow();
     return left < 0 ? `<span class="cd bad">已过预计 ${hhmmss(left)}</span>` : `<span class="cd ok" data-eta="${r.time}">${hhmmss(left)}</span>`; };
   const hide = {h: "", k: "hide", sort: false, f: (r) => `<button class="btn plain mini" data-hide="${r.segment_id}" title="不需要出现在这里的任务：隐藏后也不再提醒，可在下方“已隐藏”恢复">隐藏</button>`};
-  const qtyCol = {h: "货量（BWI）", k: "qty_bags", f: qtyCell};
+  const qtyCol = {h: "票数（BWI）", k: "qty_pieces", f: qtyCell};
   const base = [
     {h: "任务编号", k: "taskNo", f: (r) => `<span class="mono">${esc(r.taskNo)}</span>`},
     {h: "始发地", k: "origin", f: (r) => esc(r.origin)},
@@ -1093,17 +1092,15 @@ async function closeAlert(id) {
 
 async function editCargo(id) {
   const row = (state?.receiving || []).find((r) => String(r.segment_id) === String(id)); if (!row) return;
-  const bags = prompt(`${row.taskNo}（${row.origin} → BWI）到 BWI 的货量：袋数\n${row.qty_note ? "TMS：" + row.qty_note + "\n" : ""}留空 = 清除手填，恢复 TMS 数字`,
-                      row.qty_source === "manual" ? row.qty_bags : "");
-  if (bags === null) return;
-  const pieces = bags.trim() === "" ? "" : prompt("件数（不知道可留空）：", row.qty_source === "manual" && row.qty_pieces != null ? row.qty_pieces : "");
+  const pieces = prompt(`${row.taskNo}（${row.origin} → BWI）到 BWI 的票数：\n${row.qty_note ? "TMS：" + row.qty_note + "\n" : ""}留空 = 清除手填，恢复 TMS 数字`,
+                        row.qty_source === "manual" && row.qty_pieces != null ? row.qty_pieces : "");
   if (pieces === null) return;
-  if (!/^\d*$/.test(bags.trim()) || !/^\d*$/.test(String(pieces).trim())) { alert("请输入整数"); return; }
+  const v = pieces.trim().replace(/,/g, "");
+  if (!/^\d*$/.test(v)) { alert("请输入整数票数"); return; }
   const user = askName("请输入您的姓名："); if (!user) return;
   const headers = {"Content-Type": "application/json"};
   if (state?.shift?.admin_token_required) headers["X-Admin-Token"] = adminToken();
-  const r = await fetch(`/api/segments/${id}/cargo`, {method: "POST", headers,
-    body: JSON.stringify({user, bags: bags.trim() === "" ? null : Number(bags), pieces: String(pieces).trim() === "" ? null : Number(pieces)})});
+  const r = await fetch(`/api/segments/${id}/cargo`, {method: "POST", headers, body: JSON.stringify({user, pieces: v === "" ? null : Number(v)})});
   if (!r.ok) { $("banners").insertAdjacentHTML("afterbegin", `<div class="banner bad">无法保存：${esc((await r.json()).error)}</div>`); return; }
   load();
 }

@@ -1012,16 +1012,16 @@ class NoticeRules(unittest.TestCase):
                              handlingModeStr=multi, taskName="CNO.H-BWI.H-JFK.H(14:30)")
         bags, _, source, note = web.cargo(cno_jfk)
         self.assertEqual((bags, source), (None, None))                    # JFK cargo on board: BWI share unknown
-        self.assertIn("JFK", note)
+        self.assertIn("11,409 票含 JFK", note)
         ewr_loop = unload_seg(loadBagCount=28, loadWaybillCount=12318, placeOfOrigin="EWR.H", sortNum=1,
                               handlingModeStr=multi, taskName="EWR.H-BWI.H-EWR.H(12:00)")
         self.assertEqual(web.cargo(ewr_loop)[2], "loaded")                 # goes back to EWR: all cargo is BWI's
         done = dict(cno_jfk, unLoadBagCount=17, unLoadWaybillCount=4110,
                     unloadCompleteTimeStrFormat="2026-10-17 21:47:00 (Eastern Time)")
         self.assertEqual(web.cargo(done)[:3], (17, 4110, "unloaded"))
-        self.store.set_manual_cargo(2, 12, None, "Wei", et("2026-10-11 10:00:00"))
+        self.store.set_manual_cargo(2, None, 4100, "Wei", et("2026-10-11 10:00:00"))   # 票数 only
         manual = self.store.manual_cargo()[2]
-        self.assertEqual(web.cargo(cno_jfk, manual)[:3], (12, None, "manual"))
+        self.assertEqual(web.cargo(cno_jfk, manual)[1:3], (4100, "manual"))
         self.store.set_manual_cargo(2, None, None, "Wei", et("2026-10-11 10:05:00"))
         self.assertEqual(self.store.manual_cargo(), {})
 

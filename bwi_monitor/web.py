@@ -110,23 +110,23 @@ def route_stops(seg):
 
 
 def cargo(seg, manual=None):
-    """BWI cargo of one inbound truck: (bags, pieces, source, note). source: manual (entered by hand) | unloaded
+    """BWI cargo of one inbound truck: (bags, pieces, source, note); the board counts pieces (票 = waybills). source: manual (entered by hand) | unloaded
     (TMS unload complete: what BWI actually unloaded) | loaded (all cargo on the leg is for BWI) | None (TMS
     cannot tell: the truck goes on to another stop with cargo loaded before BWI, e.g. CNO-BWI-JFK)."""
     if manual:
         return manual["bags"], manual["pieces"], "manual", f"{manual['user']} 手填"
-    if seg.get("unloadCompleteTimeStrFormat") and seg.get("unLoadBagCount"):
-        return seg["unLoadBagCount"], seg.get("unLoadWaybillCount"), "unloaded", "TMS 实卸"
+    if seg.get("unloadCompleteTimeStrFormat") and seg.get("unLoadWaybillCount"):
+        return seg.get("unLoadBagCount"), seg["unLoadWaybillCount"], "unloaded", "TMS 实卸"
     bags, pieces = seg.get("loadBagCount"), seg.get("loadWaybillCount")
-    if not bags:
-        return None, None, None, "TMS 无装车数量"
+    if not pieces:
+        return None, None, None, "TMS 无装车票数"
     if rules._multi_unload(seg):
         stops, k = route_stops(seg), seg.get("sortNum") or 0
         if not (0 < k < len(stops) and stops[k] == config.SITE_CODE and stops[k - 1] == seg.get("placeOfOrigin")):
-            return None, None, None, f"装车 {bags} 袋，串点线路无法确认 BWI 货量"
+            return None, None, None, f"装车 {pieces:,} 票，串点线路无法确认 BWI 票数"
         onward = [s for s in stops[k + 1:] if s != seg.get("placeOfOrigin")]
         if onward:
-            return None, None, None, f"装车 {bags} 袋含 {'、'.join(dict.fromkeys(s.replace('.H', '') for s in onward))} 的货"
+            return None, None, None, f"装车 {pieces:,} 票含 {'、'.join(dict.fromkeys(s.replace('.H', '') for s in onward))} 的货"
     return bags, pieces, "loaded", "TMS 装车"
 
 
@@ -760,7 +760,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.store.shift_event("-", utcnow(), f"feishu mode set to {mode} on the dashboard", user)
             return self._send(200, _feishu_status(self.store))
         qty = re.fullmatch(r"/api/segments/([0-9]{1,18})/cargo", self.path)
-        if qty:  # BWI cargo by hand: {"user", "bags", "pieces"}; bags null clears it
+        if qty:  # BWI cargo by hand: {"user", "pieces"} (票数; "bags" optional); pieces null clears it
             body = self._body()
             if config.ADMIN_TOKEN and self.headers.get("X-Admin-Token") != config.ADMIN_TOKEN:
                 return self._send(403, {"error": "admin token required"})
@@ -770,7 +770,7 @@ class Handler(BaseHTTPRequestHandler):
                 pieces = None if body.get("pieces") in (None, "") else int(body["pieces"])
                 assert user and (bags is None or 0 <= bags <= 10000) and (pieces is None or 0 <= pieces <= 1000000)
             except (ValueError, TypeError, AssertionError):
-                return self._send(400, {"error": "name and a whole number of bags (pieces optional) required"})
+                return self._send(400, {"error": "name and a whole number of pieces (票数) required"})
             with self.lock:
                 if self.store.segment(int(qty.group(1))) is None:
                     return self._send(404, {"error": "task not found"})

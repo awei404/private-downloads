@@ -187,13 +187,13 @@ class Store:
         return {r["segment_id"]: dict(r) for r in self.db.execute("SELECT * FROM cargo_manual")}
 
     def set_manual_cargo(self, seg_id, bags, pieces, user, now):
-        """bags None clears the entry (back to the TMS figure)."""
-        if bags is None:
+        """pieces (票数) and bags both None clears the entry (back to the TMS figure)."""
+        if bags is None and pieces is None:
             self.db.execute("DELETE FROM cargo_manual WHERE segment_id=?", (seg_id,))
         else:
             self.db.execute("INSERT OR REPLACE INTO cargo_manual VALUES (?,?,?,?,?)", (seg_id, bags, pieces, iso(now), user))
         self.shift_event("-", now, f"segment {seg_id} cargo set by hand", user,
-                         "cleared" if bags is None else f"{bags} bags, {pieces} pieces")
+                         "cleared" if bags is None and pieces is None else f"{pieces} pieces, {bags} bags")
 
     # ---- hidden by hand: off the boards, no alerts, until restored ---------------------------------------
     def hidden(self):
