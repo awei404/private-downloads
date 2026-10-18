@@ -113,7 +113,7 @@ class Notifier:
                 # expired, no data) and, only if it heard that, that it recovered.
                 at = f"时间：{now.astimezone(EASTERN):%m-%d %H:%M} ET"
                 if kind == "NEW":
-                    why = ("TMS 登录已失效，请更新监控电脑上的 TMS 登录凭证（secrets/gofo_auth）" if "login" in f.reason
+                    why = ("TMS 登录已失效，请在监控台点“更新 TMS 登录”，粘贴新的 token" if "login" in f.reason
                            else f"超过 {config.STALE_AFTER_MINUTES} 分钟没有拿到 TMS 数据，请检查监控电脑是否开机、联网")
                     self._feishu_now(self.feishu, alert_id, now, "feishu",
                                      f"⛔ BWI 监控数据中断\n{why}。\n在恢复之前，监控台和飞书提醒都不是最新的。\n{at}")

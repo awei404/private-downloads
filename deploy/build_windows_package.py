@@ -1,4 +1,6 @@
-"""Build a code-only Windows ZIP from an explicit allowlist. No data/secrets switches."""
+"""Build the Windows ZIP from an explicit allowlist. Code only by default: the installer asks for the TMS token and
+Feishu webhook in a paste window. --with-secrets also packs secrets/gofo_auth and secrets/feishu_webhook so the
+install asks nothing (keep that ZIP private). Operational data is never packed."""
 import argparse
 import hashlib
 from pathlib import Path
@@ -6,12 +8,12 @@ import re
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = '2026.10.18.3'
+VERSION = '2026.10.18.4'
 WINDOWS_FILES = ('install.ps1','uninstall.ps1','run_bwi.bat','Install-BWI-Monitor.bat',
                  'Uninstall-BWI-Monitor.bat','env.windows.example','README-Windows.md','Download-Windows.bat')
 
 
-def build(output, version=VERSION):
+def build(output, version=VERSION, with_secrets=False):
     if not re.fullmatch(r'[0-9]+(?:\.[0-9]+){3}', version):
         raise ValueError('version must be YYYY.MM.DD.N')
     output = Path(output)
@@ -23,6 +25,10 @@ def build(output, version=VERSION):
         files[name] = (ROOT/'deploy/windows'/name).read_bytes()
     files['tools/import_driver_appointments.py'] = (ROOT/'tools/import_driver_appointments.py').read_bytes()
     files['VERSION.txt'] = (version+'\n').encode()
+    if with_secrets:
+        for name in ('gofo_auth', 'feishu_webhook'):
+            if (ROOT/'secrets'/name).is_file():
+                files['secrets/'+name] = (ROOT/'secrets'/name).read_bytes()
     checksums = ''.join(hashlib.sha256(data).hexdigest()+'  '+name+'\n' for name,data in sorted(files.items()))
     files['PACKAGE-SHA256SUMS.txt'] = checksums.encode()
     archive = output/'BWI-Monitor-Windows.zip'
@@ -49,4 +55,5 @@ if __name__ == '__main__':
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--output',default=str(ROOT/'dist/windows'))
     p.add_argument('--version',default=VERSION)
-    args=p.parse_args();build(args.output,args.version)
+    p.add_argument('--with-secrets',action='store_true',help='pack the TMS token and Feishu webhook (private use only)')
+    args=p.parse_args();build(args.output,args.version,args.with_secrets)

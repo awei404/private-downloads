@@ -86,6 +86,9 @@ def _bool(name, default):
 FEISHU_ENABLED = _bool("FEISHU_ENABLED", "false")
 FEISHU_TEST_MODE = _bool("FEISHU_TEST_MODE", "true")
 FEISHU_WEBHOOK_FILE = os.environ.get("FEISHU_WEBHOOK_FILE", "secrets/feishu_webhook")
+# TMS login token file. The dashboard writes it ("更新 TMS 登录"); every poll reads it again, so no restart is needed.
+GOFO_AUTH_FILE = os.environ.get("GOFO_AUTH_FILE") or os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "secrets", "gofo_auth")
 FEISHU_SECRET_FILE = os.environ.get("FEISHU_SECRET_FILE", "secrets/feishu_secret")
 FEISHU_ADMIN_WEBHOOK_FILE = os.environ.get("FEISHU_ADMIN_WEBHOOK_FILE", "secrets/feishu_admin_webhook")
 FEISHU_INCLUDE_DEPARTURE = _bool("FEISHU_INCLUDE_DEPARTURE", "false")  # TMS-planned departure overdue (non-branch runs)

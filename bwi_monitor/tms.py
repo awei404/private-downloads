@@ -21,6 +21,34 @@ class FeedError(RuntimeError):
     """Network/API failure after retries."""
 
 
+def normalize_token(raw):
+    """A pasted TMS token -> the Authorization value: accepts "Bearer eyJ...", "eyJ..." or "Authorization: Bearer ..."."""
+    t = (raw or "").strip().strip('"').strip("'").lstrip("\ufeff").strip()
+    if t.lower().startswith("authorization:"):
+        t = t.split(":", 1)[1].strip()
+    if t and not t.lower().startswith("bearer "):
+        t = "Bearer " + t
+    return t
+
+
+def check_token(auth):
+    """Raises AuthError if TMS rejects the token, FeedError if TMS cannot be reached. One small read-only request."""
+    TmsClient(auth=auth)._page({"destinationTransitIdList": [config.SITE_TRANSIT_ID]}, 1, page_size=1)
+
+
+def save_token(auth, path=None):
+    path = path or config.GOFO_AUTH_FILE
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        fh.write(auth)
+    try:
+        os.chmod(tmp, 0o600)
+    except OSError:
+        pass
+    os.replace(tmp, path)
+
+
 class TmsClient:
     def __init__(self, auth=None, tag=None):
         auth = auth or os.environ.get("GOFO_AUTH")

@@ -1,5 +1,11 @@
 # BWI TMS real-time alert monitor
 
+## 2026.10.18.4 · 双击安装、网页更新 TMS 登录
+
+- Windows：解压后双击 `Install-BWI-Monitor.bat`；缺 TMS token 或飞书 webhook 时弹窗粘贴，不用自己放文件。管理员口令改为 6 位数字。
+- TMS 登录过期：监控台红色按钮“更新 TMS 登录”（或点顶部 TMS 标签）粘贴新 token，先验证有效才保存，并立即重新拉取。Mac 同样适用。
+- Windows 自动检查（GitHub Actions）现在会真正启动监控程序，确认监控台、数据接口和 token 验证都能用。
+
 ## 2026.10.18.3 · 收车只看票数
 
 - 货量一律按**票数**（TMS waybill 数）显示和统计，不再显示袋数；手动输入也只填票数。

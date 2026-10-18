@@ -356,21 +356,25 @@ function render(tableId, moreId, cols, rows, opt) {
 /* ---- A: header chips + banners ---- */
 function renderHeader(s) {
   const h = s.health, sh = s.shift, f = s.feishu;
-  const tms = h.stale ? ["bad", `TMS数据过期（最后成功 ${md(h.last_ok_et)}）`] : ["ok", `TMS在线 · ${h.last_ok_et.slice(11)} ET 更新`];
+  const tms = h.auth_expired ? ["bad", "TMS 登录失效 · 点此更新"] : h.stale ? ["bad", `TMS数据过期（最后成功 ${md(h.last_ok_et)}）`]
+    : ["ok", `TMS在线 · ${(h.last_ok_et || "").slice(11)} ET 更新`];
   const shift = sh.alerts_enabled ? ["ok", `班次运行中 · 启动 ${md(sh.confirmed_start_et)}`] : ["warn", "班次未开始 · 提醒已静音"];
   const fs = !f.enabled ? ["bad", "飞书关闭"] : f.test_mode ? ["warn", "飞书测试模式（只记录不发送）"]
     : !sh.alerts_enabled ? ["warn", "飞书待命（上班后发送）"]
     : f.live_this_shift ? (f.last && !f.last.ok ? ["bad", "飞书发送失败"] : ["ok", "飞书正式发送中"])
     : f.authorization_pending ? ["warn", "飞书已授权·下一班次生效"] : ["warn", "飞书未授权本班次"];
   const open = ["ok", "收车营业 12:00–19:00"];
-  $("chips").innerHTML = [tms, shift, open].map(([c, t]) => `<span class="chip"><span class="dot ${c}"></span>${esc(t)}</span>`).join("") +
+  $("chips").innerHTML = `<button class="chip chipbtn" data-token="1" title="更新 TMS 登录（token 过期时用）"><span class="dot ${tms[0]}"></span>${esc(tms[1])}</button>` +
+    [shift, open].map(([c, t]) => `<span class="chip"><span class="dot ${c}"></span>${esc(t)}</span>`).join("") +
     (f.enabled ? `<button class="chip chipbtn" data-feishu-mode="${f.test_mode ? "live" : "test"}" title="点击切换：${f.test_mode ? "开始正式发送飞书" : "改为测试模式（只记录不发送）"}"><span class="dot ${fs[0]}"></span>${esc(fs[1])} ⇄</button>`
      : `<span class="chip"><span class="dot ${fs[0]}"></span>${esc(fs[1])}</span>`) +
     `<span class="chip">报表日 ${esc(sh.reporting_date)}</span>`;
   $("btnStart").disabled = sh.alerts_enabled; $("btnEnd").disabled = !sh.alerts_enabled;
 
   const out = [], sys = s.system.map((a) => a.reason).join(" · ");
-  if (h.stale || sys) out.push(`<div class="banner bad">⚠ TMS 数据可能已过期，页面信息不是最新：${esc(sys || h.last_error || "最后成功更新 " + h.last_ok_et + " ET")}</div>`);
+  if (h.auth_expired) out.push(`<div class="banner bad">⛔ TMS 登录已失效（或还没有输入），监控暂停，飞书提醒也会停。
+    <button class="btn start" data-token="1">更新 TMS 登录</button></div>`);
+  else if (h.stale || sys) out.push(`<div class="banner bad">⚠ TMS 数据可能已过期，页面信息不是最新：${esc(sys || h.last_error || "最后成功更新 " + h.last_ok_et + " ET")}</div>`);
   if (sh.open_overnight_warning) out.push(`<div class="banner warn">班次自 ${esc(sh.confirmed_start_et)} 起仍未结束，已跨过报表日。请确认仍在作业或结束班次。
     <button class="btn plain" data-shift="confirm-open">仍在作业</button><button class="btn plain" data-shift="end">结束班次</button></div>`);
   if (sh.manual_arrival_without_shift) out.push(`<div class="banner info">TMS 已有人工签到（${esc(sh.earliest_manual_ref.time_et)} · ${esc(sh.earliest_manual_ref.taskNo)}），但班次尚未开始。
@@ -1090,6 +1094,21 @@ async function closeAlert(id) {
   load();
 }
 
+async function updateToken() {
+  const raw = prompt("粘贴新的 TMS 登录 token：\n\n1. 用浏览器登录 TMS（dms.gofoexpress.com）\n2. 按 F12 → Network（网络）→ 点任意一个 pageList 请求\n" +
+                     "3. Request Headers 里找到 Authorization，复制 Bearer 开头的整串，粘贴到下面");
+  if (raw === null || !raw.trim()) return;
+  const headers = {"Content-Type": "application/json"};
+  if (state?.shift?.admin_token_required) headers["X-Admin-Token"] = adminToken();
+  $("banners").insertAdjacentHTML("afterbegin", `<div class="banner info" id="tokenWait">正在用新 token 连接 TMS 验证…</div>`);
+  let r, d = {};
+  try { r = await fetch("/api/tms-token", {method: "POST", headers, body: JSON.stringify({token: raw, user: ls.get("bwi-user") || ""})});
+        d = await r.json().catch(() => ({})); } catch (e) { r = null; }
+  $("tokenWait")?.remove();
+  if (!r || !r.ok) { alert("没有保存：" + (d.error || "无法连接监控服务")); return; }
+  alert("✅ TMS 登录已更新，正在重新拉取数据（约 1 分钟后页面会刷新）。");
+  load(); setTimeout(load, 45000);
+}
 async function editCargo(id) {
   const row = (state?.receiving || []).find((r) => String(r.segment_id) === String(id)); if (!row) return;
   const pieces = prompt(`${row.taskNo}（${row.origin} → BWI）到 BWI 的票数：\n${row.qty_note ? "TMS：" + row.qty_note + "\n" : ""}留空 = 清除手填，恢复 TMS 数字`,
@@ -1155,9 +1174,10 @@ document.addEventListener("click", async (e) => {
   if (e.target.closest("[data-score-task],[data-driver-total],[data-driver-print]")) return;
   const arrivalOpen = e.target.closest("[data-arrival-open]");
   if (arrivalOpen) { e.stopPropagation(); return showSegment(arrivalOpen.dataset.arrivalOpen); }
-  const t = e.target.closest("[data-cargo],[data-hide],[data-unhide],[data-feishu-mode],[data-shift],[data-ack],[data-close],[data-main],[data-origin],[data-send],[data-dep],[data-unl],[data-tab],[data-more],[data-clear],th[data-sort],tr[data-seg]");
+  const t = e.target.closest("[data-token],[data-cargo],[data-hide],[data-unhide],[data-feishu-mode],[data-shift],[data-ack],[data-close],[data-main],[data-origin],[data-send],[data-dep],[data-unl],[data-tab],[data-more],[data-clear],th[data-sort],tr[data-seg]");
   if (!t) return;
   if (t.dataset.clear) { $("q").value = ""; return renderAll(); }
+  if (t.dataset.token) return updateToken();
   if (t.dataset.cargo) { e.stopPropagation(); return editCargo(t.dataset.cargo); }
   if (t.dataset.hide || t.dataset.unhide) { e.stopPropagation(); return hideTask(t.dataset.hide || t.dataset.unhide, !!t.dataset.unhide); }
   if (t.dataset.feishuMode) return feishuMode(t.dataset.feishuMode);

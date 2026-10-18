@@ -24,10 +24,13 @@ from .tms import CANCELLED, AuthError, FeedError, TmsClient
 
 
 def read_auth():
-    path = os.environ.get("GOFO_AUTH_FILE")
-    if path and os.path.exists(path):
+    """The token file (written by the dashboard or the installer) wins; GOFO_AUTH in the environment is the fallback."""
+    path = config.GOFO_AUTH_FILE
+    if os.path.exists(path):
         with open(path, encoding="utf-8") as fh:
-            return fh.read().strip()
+            token = fh.read().strip().lstrip("\ufeff").strip()
+        if token:
+            return token
     return os.environ.get("GOFO_AUTH")
 
 
@@ -57,7 +60,7 @@ class Monitor:
             records = self._client().fetch_bwi()
         except AuthError as e:
             self.store.finish_poll(run, False, error=str(e))
-            self.engine.feed_status(now, f"TMS login rejected ({e}). Update GOFO_AUTH.")
+            self.engine.feed_status(now, f"TMS login rejected ({e}). Update the TMS login on the dashboard.")
             print(f"[{now.astimezone(EASTERN):%H:%M}] poll failed: {e}", file=sys.stderr, flush=True)
             return False
         except FeedError as e:
@@ -117,7 +120,8 @@ class Monitor:
         while True:
             # Wall clock, not monotonic: on macOS the monotonic clock stops while the computer sleeps, so after a wake
             # the next poll would wait out the rest of the interval (2026-10-17: 25 min with stale data).
-            if time.time() >= next_poll:
+            if time.time() >= next_poll or self.store.get_meta("poll_now"):  # poll_now: new token saved
+                self.store.set_meta("poll_now", "")
                 self.poll()
                 next_poll = time.time() + config.POLL_SECONDS
             now = utcnow()

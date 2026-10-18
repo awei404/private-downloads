@@ -4,7 +4,8 @@ param(
   [ValidateRange(1,65535)][int]$Port = 8766,
   [string]$PythonExe = "",
   [switch]$NoStart,
-  [switch]$SkipSystemSetup
+  [switch]$SkipSystemSetup,
+  [switch]$NoPrompt
 )
 $ErrorActionPreference = "Stop"
 $src = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -13,6 +14,22 @@ if ($InstallDir.TrimEnd('\') -eq ([IO.Path]::GetFullPath($src)).TrimEnd('\')) { 
 function Run-Python([string]$Exe, [string[]]$PythonArgs) {
   & $Exe @PythonArgs
   if ($LASTEXITCODE -ne 0) { throw "Python command failed (exit $LASTEXITCODE)." }
+}
+function Ask-Text([string]$Title, [string]$Message) {
+  # A simple paste window (no length limit). Returns "" when skipped or when no one can answer (tests, services).
+  if ($NoPrompt -or -not [Environment]::UserInteractive) { return "" }
+  Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+  $form = New-Object Windows.Forms.Form -Property @{ Text = $Title; Width = 640; Height = 260; StartPosition = 'CenterScreen'; TopMost = $true; FormBorderStyle = 'FixedDialog'; MaximizeBox = $false; MinimizeBox = $false }
+  $label = New-Object Windows.Forms.Label -Property @{ Text = $Message; Left = 12; Top = 10; Width = 600; Height = 90 }
+  $box = New-Object Windows.Forms.TextBox -Property @{ Left = 12; Top = 105; Width = 600; MaxLength = 100000 }
+  $ok = New-Object Windows.Forms.Button -Property @{ Text = 'OK'; Left = 432; Top = 150; Width = 85; DialogResult = 'OK' }
+  $skip = New-Object Windows.Forms.Button -Property @{ Text = 'Skip'; Left = 527; Top = 150; Width = 85; DialogResult = 'Cancel' }
+  $form.Controls.AddRange(@($label, $box, $ok, $skip)); $form.AcceptButton = $ok; $form.CancelButton = $skip
+  if ($form.ShowDialog() -eq 'OK') { return $box.Text.Trim() }
+  return ""
+}
+function Save-Text([string]$Path, [string]$Text) {
+  [IO.File]::WriteAllText($Path, $Text, (New-Object Text.UTF8Encoding($false)))   # no BOM
 }
 function Find-Python {
   if ($PythonExe) { return $PythonExe }
@@ -84,7 +101,7 @@ try {
   if (Test-Path "$src\tools") { Copy-Item -Recurse -Force "$src\tools" $InstallDir }
   if (-not (Test-Path $envPath)) {
     $settings = (Get-Content "$src\env.windows.example" -Raw).Replace('BWI_WEB_PORT=8766', "BWI_WEB_PORT=$Port")
-    $settings = $settings.Replace('BWI_ADMIN_TOKEN=change-me', 'BWI_ADMIN_TOKEN=' + [guid]::NewGuid().ToString('N'))
+    $settings = $settings.Replace('BWI_ADMIN_TOKEN=change-me', 'BWI_ADMIN_TOKEN=' + (Get-Random -Minimum 100000 -Maximum 999999))
     [IO.File]::WriteAllText($envPath, $settings, (New-Object Text.UTF8Encoding($false)))
   }
   Write-Host "5/6 Configuring automatic startup ..."
@@ -106,20 +123,29 @@ try {
     Write-Host ("Dashboard admin password (asked once per browser): " + ($tokenLine -split '=',2)[1].Trim()) -ForegroundColor Yellow
     Write-Host "Write it down. It is also in $envPath (BWI_ADMIN_TOKEN)."
   }
+  # Credentials: taken from the package when it carries them, otherwise asked in a paste window. Existing ones are kept.
+  foreach ($name in @('gofo_auth', 'feishu_webhook')) {
+    if (-not (Test-Path "$InstallDir\secrets\$name") -and (Test-Path "$src\secrets\$name")) {
+      Copy-Item "$src\secrets\$name" "$InstallDir\secrets\$name"
+    }
+  }
+  if (-not (Test-Path "$InstallDir\secrets\feishu_webhook")) {
+    $hook = Ask-Text 'BWI Monitor - Feishu' "Paste the Feishu group bot webhook (starts with https://open.feishu.cn/...).`nSkip = no Feishu messages for now."
+    if ($hook) { Save-Text "$InstallDir\secrets\feishu_webhook" $hook }
+  }
+  if (-not (Test-Path "$InstallDir\secrets\gofo_auth")) {
+    $token = Ask-Text 'BWI Monitor - TMS login' "Paste the TMS login token (Authorization value, starts with Bearer).`nTMS website: F12 > Network > any pageList request > Request Headers > Authorization.`nSkip = enter it later on the dashboard (red button)."
+    if ($token) {
+      if ($token -notmatch '^(?i)bearer ') { $token = 'Bearer ' + $token }
+      Save-Text "$InstallDir\secrets\gofo_auth" $token
+    }
+  }
   if (-not $NoStart -and -not $SkipSystemSetup) {
-    $authPath = Join-Path $InstallDir 'secrets\gofo_auth'
-    $authLine = Get-Content $envPath | Where-Object { $_ -match '^\s*GOFO_AUTH_FILE\s*=' } | Select-Object -First 1
-    if ($authLine) {
-      $configuredAuth = ($authLine -split '=',2)[1].Trim().Trim('"').Trim("'")
-      $authPath = if ([IO.Path]::IsPathRooted($configuredAuth)) { $configuredAuth } else { Join-Path $InstallDir $configuredAuth }
-    }
-    if (Test-Path $authPath) {
-      Start-ScheduledTask -TaskName 'BWI TMS Monitor'
-      Write-Host "Opening dashboard. Initial TMS refresh may take a minute."
-      Start-Process "http://127.0.0.1:$Port/dashboard-v2"
-    } else {
-      Write-Host "Add your local TMS token to $InstallDir\secrets\gofo_auth, then double-click $InstallDir\run_bwi.bat."
-    }
+    # Always start: without a valid TMS login the dashboard shows a red button to paste one.
+    Start-ScheduledTask -TaskName 'BWI TMS Monitor'
+    Write-Host "Opening dashboard. The first TMS refresh takes about a minute."
+    Start-Sleep -Seconds 8
+    Start-Process "http://127.0.0.1:$Port/"
   }
 } catch {
   if ($oldMoved -and (Test-Path "$backup\bwi_monitor")) {

@@ -1137,3 +1137,45 @@ class NoticeRules(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TokenUpdate(unittest.TestCase):
+    """2026-10-18: a new TMS token is pasted on the dashboard, checked with TMS, saved to the token file and polled."""
+
+    def post(self, port, body):
+        import json
+        import urllib.request
+        req = urllib.request.Request(f"http://127.0.0.1:{port}/api/tms-token", data=json.dumps(body).encode(),
+                                     headers={"Content-Type": "application/json"}, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=10) as r:
+                return r.status, json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            return e.code, json.loads(e.read())
+
+    def test_token_checked_saved_and_polled(self):
+        import urllib.error  # noqa: F401
+        from bwi_monitor import tms
+        from bwi_monitor.__main__ import read_auth
+        d = tempfile.mkdtemp()
+        token_file = os.path.join(d, "secrets", "gofo_auth")
+        checked = []
+
+        def check(auth):
+            checked.append(auth)
+            if "expired" in auth:
+                raise tms.AuthError("401")
+        with mock.patch.object(config, "GOFO_AUTH_FILE", token_file), mock.patch.object(config, "ADMIN_TOKEN", ""), \
+                mock.patch.object(web.Handler, "check_token", staticmethod(check)):
+            server = web.serve(os.path.join(d, "a.db"), host="127.0.0.1", port=0)
+            self.addCleanup(server.shutdown)
+            port = server.server_port
+            code, body = self.post(port, {"token": "Bearer expired-" + "x" * 40})
+            self.assertEqual(code, 400)
+            self.assertFalse(os.path.exists(token_file))                     # a rejected token is never saved
+            code, body = self.post(port, {"token": "  eyJhbGciOi" + "y" * 40 + "  "})
+            self.assertEqual((code, body), (200, {"ok": True}))
+            self.assertEqual(checked[-1], "Bearer eyJhbGciOi" + "y" * 40)   # "Bearer " added, spaces trimmed
+            self.assertEqual(read_auth(), "Bearer eyJhbGciOi" + "y" * 40)
+            self.assertEqual(web.Handler.store.get_meta("poll_now"), "1")
+        self.assertEqual(tms.normalize_token("Authorization: Bearer abc"), "Bearer abc")

@@ -444,6 +444,9 @@ def build_state(store, now):
             "last_ok_et": fmt_et(ok_at),
             "records": last_ok["records"] if last_ok else 0,
             "stale": stale,
+            # the TMS login is missing or rejected: the dashboard asks for a new token
+            "auth_expired": bool(last and not last["ok"] and any(
+                w in (last["error"] or "") for w in ("401", "Unauthorized", "GOFO_AUTH is not set", "token"))),
             "poll_minutes": config.POLL_SECONDS // 60,
         },
         "counts": {
@@ -501,10 +504,16 @@ def segment_detail(store, seg_id, now):
     }
 
 
+def _check_token(auth):
+    from . import tms
+    tms.check_token(auth)
+
+
 class Handler(BaseHTTPRequestHandler):
     store = None
     driver_sync = None
     lock = threading.Lock()
+    check_token = staticmethod(_check_token)  # replaced in tests
 
     def log_message(self, *args):
         pass
@@ -748,6 +757,25 @@ class Handler(BaseHTTPRequestHandler):
                         with open(os.path.join(folder, f"shift_report_session{ended}.md"), "w", encoding="utf-8") as fh:
                             fh.write(build(self.store, ended, now) + "\n")
                 return self._send(200, shifts.view(now))
+        if self.path == "/api/tms-token":  # new TMS login pasted on the dashboard: checked with TMS, then saved
+            body = self._body()
+            if config.ADMIN_TOKEN and self.headers.get("X-Admin-Token") != config.ADMIN_TOKEN:
+                return self._send(403, {"error": "admin token required"})
+            from . import tms
+            auth = tms.normalize_token(str(body.get("token") or ""))
+            if len(auth) < 30:
+                return self._send(400, {"error": "token 太短，请复制完整的 Authorization 值（Bearer 开头）"})
+            try:
+                self.check_token(auth)
+            except tms.AuthError:
+                return self._send(400, {"error": "TMS 不接受这个 token（无效或已过期），未保存。请重新登录 TMS 后再复制。"})
+            except tms.FeedError as e:
+                return self._send(502, {"error": f"暂时连不上 TMS，未保存，请稍后再试（{e}）"})
+            tms.save_token(auth)
+            with self.lock:
+                self.store.set_meta("poll_now", "1")
+                self.store.shift_event("-", utcnow(), "TMS login updated on the dashboard", str(body.get("user") or "")[:80])
+            return self._send(200, {"ok": True})
         if self.path == "/api/feishu/mode":  # dashboard switch: live sending / test mode (record only)
             body = self._body()
             if config.ADMIN_TOKEN and self.headers.get("X-Admin-Token") != config.ADMIN_TOKEN:

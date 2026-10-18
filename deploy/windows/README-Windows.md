@@ -1,16 +1,25 @@
-# BWI Monitor · Windows 新版
+# BWI Monitor · Windows 安装（三步）
 
-## 下载、安装或升级
+1. 下载 `BWI-Monitor-Windows.zip`，右键 →“全部解压缩”（不要在压缩包里直接双击）。
+2. 双击 **Install-BWI-Monitor.bat**，弹出“是否允许”点“是”。没有 Python 会自动安装。
+3. 安装过程中会弹出两个粘贴窗口：
+   - **飞书 Webhook**：粘贴飞书群机器人地址（https://open.feishu.cn/... 开头）。
+   - **TMS 登录 token**：粘贴 Authorization 值（Bearer 开头）。
+   跳过也可以：监控台会出现红色按钮，随时可以再粘贴。
 
-1. 下载 `BWI-Monitor-Windows.zip`，先解压。
-2. 双击 `Install-BWI-Monitor.bat`，允许管理员提示。
-3. 程序默认装到 `C:\BWI-Monitor`。缺少 Python 时会尝试自动安装 Python 3.12；需要联网安装依赖。
-4. 已安装过的电脑重复执行即可升级：**本机数据库、secrets 和 .env 保留**。升级前的代码、设置和数据库备份集中放在 `C:\BWI-Monitor\backups`。
-5. `Download-Windows.bat` 可双击打开 GitHub 最新版 ZIP 下载。
+装完会自动打开监控台。黑色窗口最后黄色字是**管理员口令（6 位数字）**，每台电脑的浏览器只需输入一次。
 
-首次安装没有运营数据或凭证。把现有 TMS 凭证放到本机 `C:\BWI-Monitor\secrets\gofo_auth`；需要飞书时另在本机配置 `feishu_webhook`。不要把这些文件上传到 GitHub。首次生成的管理员口令保存在本机 `.env` 的 `BWI_ADMIN_TOKEN`。
+**升级**：下载新的 ZIP，同样双击安装即可，直接覆盖旧版本；数据库、token、webhook 和设置都会保留（旧版本自动备份到 `C:\BWI-Monitor\backups`）。
 
-已安装电脑的 `.env` 不会被覆盖。首次安装保持飞书测试模式；Windows 正式接管发送之前，应先停用另一台电脑的正式发送，避免两端同时通知。无需飞书也可以启动看板。
+## TMS 登录过期怎么办
+
+监控台顶部会出现红色“TMS 登录失效”，飞书也会收到“⛔ BWI 监控数据中断”。
+
+1. 用浏览器登录 TMS（dms.gofoexpress.com），按 **F12** → **Network（网络）** → 点任意一个 `pageList` 请求。
+2. 在 Request Headers 里找到 **Authorization**，复制 `Bearer` 开头的整串。
+3. 在监控台点红色按钮 **“更新 TMS 登录”**（或点顶部的 TMS 标签），粘贴 → 确定。
+
+系统会先拿新 token 去 TMS 验证，**有效才保存**，然后立刻重新拉取数据，不需要重启。
 
 ## 新功能
 
@@ -34,7 +43,6 @@
 
 ## 日常
 
-- TMS 凭证过期：更新本机 `secrets\gofo_auth`，后台下一次读取会生效。
 - 程序日志：`data\service.log`；数据库默认 `data\bwi_monitor.db`。
 - 修改 `.env` 后，在任务计划程序中重新运行 `BWI TMS Monitor`。
 - 原监控规则和通知判定未因司机功能修改。
