@@ -1,4 +1,4 @@
-name: Windows release check
+name: Windows + Mac release check
 on:
   push:
     paths:
@@ -41,3 +41,29 @@ jobs:
         with:
           name: BWI-Monitor-Windows
           path: dist/windows/*
+  mac:
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            bwi_monitor
+            tests
+            deploy
+            tools
+      - name: Regression tests on the Mac's built-in Python
+        run: |
+          /usr/bin/python3 --version
+          /usr/bin/python3 -m venv /tmp/venv && /tmp/venv/bin/pip install -q -r requirements.txt
+          /tmp/venv/bin/python -m unittest discover -s tests -q
+      - name: Build Mac package
+        run: python3 deploy/build_mac_package.py --output dist/mac
+      - name: Verify Mac install, upgrade and run
+        run: |
+          ditto -x -k dist/mac/BWI-Monitor-Mac.zip "$RUNNER_TEMP/pkg"
+          BWI_PYTHON=/usr/bin/python3 deploy/mac/test_install.sh "$RUNNER_TEMP/pkg/BWI-Monitor-Mac"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BWI-Monitor-Mac
+          path: dist/mac/*

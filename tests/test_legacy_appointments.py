@@ -4,6 +4,7 @@ from contextlib import redirect_stdout
 from datetime import datetime, timezone
 from io import StringIO
 import json
+import os
 from pathlib import Path
 import sqlite3
 import tempfile
@@ -180,7 +181,7 @@ class LegacyImportTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             import_appointments(self.source, self.source)
         hardlink = Path(self.temp.name) / "same.db"
-        hardlink.hardlink_to(self.source)
+        os.link(self.source, hardlink)  # Path.hardlink_to needs Python 3.10; macOS ships 3.9
         with self.assertRaises(ValueError):
             import_appointments(self.source, hardlink)
         with self.assertRaises(FileNotFoundError):

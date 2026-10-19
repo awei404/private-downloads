@@ -1,5 +1,10 @@
 # BWI TMS real-time alert monitor
 
+## 2026.10.19.1 · Mac 版
+
+- 新增 Mac 安装包 `BWI-Monitor-Mac.zip`：解压后双击 `Install-BWI-Monitor.command`。装到 `~/BWI-Monitor`，登录后自动运行、出错自动重启；缺 token / webhook 时弹窗粘贴；升级直接覆盖，数据保留。详见 [Mac 说明](deploy/mac/README-Mac.md)。
+- 支持 Mac 自带的 Python 3.9。GitHub 自动检查同时在 Windows 和 Mac 上安装、升级并启动监控。
+
 ## 2026.10.18.4 · 双击安装、网页更新 TMS 登录
 
 - Windows：解压后双击 `Install-BWI-Monitor.bat`；缺 TMS token 或飞书 webhook 时弹窗粘贴，不用自己放文件。管理员口令改为 6 位数字。
