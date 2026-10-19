@@ -10,7 +10,7 @@ import zipfile
 from build_windows_package import ROOT, VERSION
 
 MAC_FILES = ('install.sh', 'uninstall.sh', 'Install-BWI-Monitor.command', 'Uninstall-BWI-Monitor.command',
-             'env.mac.example', 'README-Mac.md')
+             'env.mac.example', 'README-Mac.md', '双击打不开请看.txt')
 
 
 def build(output, version=VERSION, with_secrets=False):

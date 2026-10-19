@@ -20,6 +20,9 @@ ask() {  # ask TITLE MESSAGE -> pasted text ("" when skipped)
 alert() { [ -n "$NO_PROMPT" ] || osascript -e 'on run argv' -e 'display dialog (item 1 of argv) with title "BWI Monitor" buttons {"好"} default button "好"' -e 'end run' "$1" >/dev/null 2>&1 || true; }
 
 [ "$SRC" = "${DIR}" ] && { echo "Unzip the package to a different folder than ${DIR} first."; exit 1; }
+# Files downloaded from the internet carry a quarantine mark; macOS then refuses to double-click unsigned scripts.
+# Clear it on the package and the install so Install/Uninstall .command files open normally from now on.
+xattr -dr com.apple.quarantine "$SRC" >/dev/null 2>&1 || true
 
 echo "1/6 检查 Python ..."
 PY=""
@@ -58,6 +61,7 @@ echo "4/6 更新程序（数据、密钥、设置保留）..."
 if [ -d "${DIR}/bwi_monitor" ]; then mv "${DIR}/bwi_monitor" "$BACKUP/bwi_monitor"; MOVED=1; fi
 cp -R "$SRC/bwi_monitor" "${DIR}/bwi_monitor"
 cp "$SRC/requirements.txt" "$SRC/VERSION.txt" "$SRC/README-Mac.md" "${DIR}/"
+xattr -dr com.apple.quarantine "${DIR}" >/dev/null 2>&1 || true
 [ -d "$SRC/tools" ] && cp -R "$SRC/tools" "${DIR}/"
 "${DIR}/venv/bin/python" -m compileall -q "${DIR}/bwi_monitor" >/dev/null
 if [ ! -f "${DIR}/.env" ]; then

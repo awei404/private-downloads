@@ -1,5 +1,9 @@
 # BWI TMS real-time alert monitor
 
+## 2026.10.19.2 · Mac 首次安装用终端
+
+- Mac 会拦截网上下载、没有 Apple 签名的脚本（双击提示“无法打开”）。第一次请在“终端”运行：`bash ~/Downloads/BWI-Monitor-Mac/install.sh`。安装程序会清除下载标记，之后双击 `.command` 就能打开。包里附《双击打不开请看.txt》。
+
 ## 2026.10.19.1 · Mac 版
 
 - 新增 Mac 安装包 `BWI-Monitor-Mac.zip`：解压后双击 `Install-BWI-Monitor.command`。装到 `~/BWI-Monitor`，登录后自动运行、出错自动重启；缺 token / webhook 时弹窗粘贴；升级直接覆盖，数据保留。详见 [Mac 说明](deploy/mac/README-Mac.md)。
