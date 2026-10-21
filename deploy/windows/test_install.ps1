@@ -63,6 +63,7 @@ try {
   $pid1 = (Invoke-RestMethod 'http://127.0.0.1:8766/healthz' -TimeoutSec 30).pid
   $dup = Start-Process -FilePath $py -ArgumentList '-u', '-m', 'bwi_monitor.windows_service' -WorkingDirectory $root `
     -RedirectStandardOutput "$root\dup-out.log" -RedirectStandardError "$root\dup-err.log" -PassThru -WindowStyle Hidden
+  $null = $dup.Handle   # PowerShell only keeps ExitCode when the handle was opened before the process ends
   if (-not $dup.WaitForExit(60000)) { Stop-Process -Id $dup.Id -Force; throw 'Second copy kept running on the same port' }
   if ($dup.ExitCode -ne 3) { Get-Content "$root\dup-err.log" | Write-Host; throw "Second copy exit code $($dup.ExitCode), expected 3" }
   foreach ($i in 1..10) {
