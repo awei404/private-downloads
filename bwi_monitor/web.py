@@ -2,6 +2,7 @@
 import json
 import os
 import re
+import sys
 import sqlite3
 import threading
 from datetime import date, datetime, timedelta, timezone
@@ -124,7 +125,7 @@ def cargo(seg, manual=None):
         stops, k = route_stops(seg), seg.get("sortNum") or 0
         if not (0 < k < len(stops) and stops[k] == config.SITE_CODE and stops[k - 1] == seg.get("placeOfOrigin")):
             return None, None, None, f"装车 {pieces:,} 票，串点线路无法确认 BWI 票数"
-        onward = [s for s in stops[k + 1:] if s != seg.get("placeOfOrigin")]
+        onward = [s for s in stops[k + 1:] if s != seg.get("placeOfOrigin") and s not in config.OWN_STOPS]
         if onward:
             return None, None, None, f"装车 {pieces:,} 票含 {'、'.join(dict.fromkeys(s.replace('.H', '') for s in onward))} 的货"
     return bags, pieces, "loaded", "TMS 装车"
@@ -444,6 +445,7 @@ def build_state(store, now):
             "last_ok_et": fmt_et(ok_at),
             "records": last_ok["records"] if last_ok else 0,
             "stale": stale,
+            "pid": os.getpid(), "version": _version(),
             # the TMS login is missing or rejected: the dashboard asks for a new token
             "auth_expired": bool(last and not last["ok"] and any(
                 w in (last["error"] or "") for w in ("401", "Unauthorized", "GOFO_AUTH is not set", "token"))),
@@ -518,6 +520,28 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):
         pass
 
+    def do_GET(self):
+        self._guard(self._get)
+
+    def do_POST(self):
+        self._guard(self._post)
+
+    def _guard(self, handler):
+        """A failing request is logged with its traceback and answered with the error, never a dropped connection
+        (the page then says what went wrong instead of 'cannot connect')."""
+        try:
+            handler()
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError):
+            pass
+        except Exception as e:
+            import traceback
+            print(f"dashboard request failed: {self.command} {self.path}", file=sys.stderr, flush=True)
+            traceback.print_exc()
+            try:
+                self._send(500, {"error": f"服务器内部错误 {type(e).__name__}: {e}"})
+            except Exception:
+                pass
+
     def _send(self, code, body, ctype="application/json"):
         data = body if isinstance(body, bytes) else json.dumps(body, ensure_ascii=False, default=str).encode()
         self.send_response(code)
@@ -526,7 +550,7 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
-    def do_GET(self):
+    def _get(self):
         now = utcnow()
         parsed = urlsplit(self.path)
         if parsed.path.startswith("/api/"):
@@ -603,6 +627,10 @@ class Handler(BaseHTTPRequestHandler):
                 return False
             hostname = requested.hostname.rstrip(".").lower()
             if bound.is_loopback and hostname == "localhost":
+                return True
+            # 2026-10-21: other warehouse computers open the dashboard by this computer's name (e.g. http://BWI-PC:8766);
+            # accept our own host name and configured names, still never an arbitrary (rebinding) name.
+            if not bound.is_loopback and hostname in _own_host_names():
                 return True
             address = ip_address(hostname)
             return address.is_loopback if bound.is_loopback else address == bound
@@ -711,7 +739,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(503, {"error": "暂时无法保存，请重新读取记录后重试。"})
             return self._send(200, {"ok": True, "override": result})
 
-    def do_POST(self):
+    def _post(self):
         if os.environ.get("BWI_DASHBOARD_READONLY") == "1":  # preview servers never change shift or alert state
             return self._send(403, {"error": "read-only preview: use the live dashboard for shift actions"})
         if self.path.startswith("/api/driver-arrival/"):
@@ -845,8 +873,41 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, {"error": "not found"})
 
 
+def _own_host_names():
+    import socket
+    names = set(config.ALLOWED_HOSTS)
+    for n in (socket.gethostname(), socket.getfqdn()):
+        n = (n or "").rstrip(".").lower()
+        if n:
+            names |= {n, n.split(".")[0], n.split(".")[0] + ".local"}
+    return names
+
+
+class Server(ThreadingHTTPServer):
+    """One dashboard per port. On Windows SO_REUSEADDR lets a second process bind the same port and the two then
+    answer requests at random (2026-10-21: page broke on refresh after an upgrade left the old copy running), so
+    Windows binds exclusively and a duplicate copy fails to start instead."""
+    allow_reuse_address = os.name != "nt"
+
+    def server_bind(self):
+        import socket
+        if os.name == "nt" and hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
+def _version():
+    for path in (os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "VERSION.txt"),):
+        try:
+            with open(path, encoding="utf-8") as fh:
+                return fh.read().strip()
+        except OSError:
+            pass
+    return "dev"
+
+
 def serve(db_path, host=config.WEB_HOST, port=config.WEB_PORT):
     Handler.store = Store(db_path)  # own connection, separate from the poller
-    server = ThreadingHTTPServer((host, port), Handler)
+    server = Server((host, port), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server

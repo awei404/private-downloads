@@ -1016,6 +1016,9 @@ class NoticeRules(unittest.TestCase):
         ewr_loop = unload_seg(loadBagCount=28, loadWaybillCount=12318, placeOfOrigin="EWR.H", sortNum=1,
                               handlingModeStr=multi, taskName="EWR.H-BWI.H-EWR.H(12:00)")
         self.assertEqual(web.cargo(ewr_loop)[2], "loaded")                 # goes back to EWR: all cargo is BWI's
+        ewr_pne = unload_seg(loadBagCount=28, loadWaybillCount=13000, placeOfOrigin="EWR.H", sortNum=1,
+                             handlingModeStr=multi, taskName="EWR.H-BWI.H-PNE01-EWR.H(12:00)")
+        self.assertEqual(web.cargo(ewr_pne)[1:3], (13000, "loaded"))      # 2026-10-21: PNE01 cargo is ours too
         done = dict(cno_jfk, unLoadBagCount=17, unLoadWaybillCount=4110,
                     unloadCompleteTimeStrFormat="2026-10-17 21:47:00 (Eastern Time)")
         self.assertEqual(web.cargo(done)[:3], (17, 4110, "unloaded"))
@@ -1179,3 +1182,22 @@ class TokenUpdate(unittest.TestCase):
             self.assertEqual(read_auth(), "Bearer eyJhbGciOi" + "y" * 40)
             self.assertEqual(web.Handler.store.get_meta("poll_now"), "1")
         self.assertEqual(tms.normalize_token("Authorization: Bearer abc"), "Bearer abc")
+
+
+class DashboardHost(unittest.TestCase):
+    def test_other_computers_may_use_this_computers_name(self):
+        """2026-10-21: http://<computer name>:8766 from another warehouse PC must load data; random names must not."""
+        import socket
+        from types import SimpleNamespace
+        from urllib.parse import urlsplit
+        h = web.Handler.__new__(web.Handler)
+        h.server = SimpleNamespace(server_address=("0.0.0.0", 8766))
+        h.connection = SimpleNamespace(getsockname=lambda: ("192.168.1.20", 8766))
+        name = socket.gethostname().split(".")[0]
+        ok = lambda host: h._trusted_driver_arrival_host(urlsplit("http://" + host))
+        self.assertTrue(ok("192.168.1.20:8766"))
+        self.assertTrue(ok(f"{name}:8766"))
+        self.assertTrue(ok(f"{name.upper()}:8766"))
+        self.assertFalse(ok("attacker.example.com:8766"))
+        with mock.patch.object(config, "ALLOWED_HOSTS", {"bwi-dashboard"}):
+            self.assertTrue(ok("bwi-dashboard:8766"))

@@ -32,3 +32,11 @@ CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 120 -X POST -H 'Content
 kill -0 $PID || { cat "$ROOT/smoke.log"; echo "monitor stopped"; exit 1; }
 ! grep -q Traceback "$ROOT/smoke.log" || { cat "$ROOT/smoke.log"; echo "python error while running"; exit 1; }
 echo "PASS: installed monitor runs on macOS (dashboard, state, token check HTTP $CODE)."
+PID1=$(curl -fsS "http://127.0.0.1:$PORT/healthz" | "$ROOT/venv/bin/python" -c 'import json,sys; print(json.load(sys.stdin)["pid"])')
+set +e; PYTHONUTF8=1 "$ROOT/venv/bin/python" -u -m bwi_monitor.windows_service > "$ROOT/dup.log" 2>&1; DUP=$?; set -e
+[ "$DUP" = 3 ] || { cat "$ROOT/dup.log"; echo "second copy exit $DUP, expected 3"; exit 1; }
+for i in 1 2 3 4 5; do
+  P=$(curl -fsS "http://127.0.0.1:$PORT/healthz" | "$ROOT/venv/bin/python" -c 'import json,sys; print(json.load(sys.stdin)["pid"])')
+  [ "$P" = "$PID1" ] || { echo "answered by another process $P"; exit 1; }
+done
+echo "PASS: a second copy refuses the port; every request answered by process $PID1."

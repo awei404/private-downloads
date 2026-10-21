@@ -86,6 +86,10 @@ def _bool(name, default):
 FEISHU_ENABLED = _bool("FEISHU_ENABLED", "false")
 FEISHU_TEST_MODE = _bool("FEISHU_TEST_MODE", "true")
 FEISHU_WEBHOOK_FILE = os.environ.get("FEISHU_WEBHOOK_FILE", "secrets/feishu_webhook")
+# Stops after BWI whose cargo is BWI's own (2026-10-21: PNE01 on EWR-BWI-PNE01-EWR): the loaded count is all ours.
+OWN_STOPS = {s.strip() for s in os.environ.get("BWI_OWN_STOPS", "PNE01").split(",") if s.strip()}
+# Extra host names the dashboard may be opened by (this computer's own name is always accepted).
+ALLOWED_HOSTS = {s.strip().lower() for s in os.environ.get("BWI_ALLOWED_HOSTS", "").split(",") if s.strip()}
 # TMS login token file. The dashboard writes it ("更新 TMS 登录"); every poll reads it again, so no restart is needed.
 GOFO_AUTH_FILE = os.environ.get("GOFO_AUTH_FILE") or os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "secrets", "gofo_auth")

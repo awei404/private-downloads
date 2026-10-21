@@ -275,6 +275,7 @@
 
   <footer class="small" style="padding: 4px 4px 16px">
     内部预警规则 · 非 TMS 官方 KPI 统计。时间按 10 分钟一次的 TMS 数据判断（“根据 TMS 记录”）。已作废（taskStatus 6）任务不参与监控。倒计时只在页面显示，不会触发通知。
+    <span id="ver"></span>
   </footer>
 </main>
 
@@ -638,13 +639,24 @@ function renderAll() {
   syncScoreControls(); syncTotalControls();
 }
 async function load() {
+  let s;
   try {
-    const s = await (await fetch("/api/state", {cache: "no-store"})).json();
-    if (s.now_iso) clockOffset = new Date(s.now_iso).getTime() - Date.now();
-    state = s; renderAll(); soundCheck(s); refreshArrivalSettings();
-    if (state.driver_scoring_enabled && ui.main === "scores") loadDrivers();
+    const r = await fetch("/api/state", {cache: "no-store"});
+    s = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(s.error || `HTTP ${r.status}`);
   } catch (e) {
-    $("banners").innerHTML = `<div class="banner bad">⚠ 无法连接监控服务，页面数据可能已过期。</div>`;
+    $("banners").innerHTML = `<div class="banner bad">⚠ 无法读取监控数据：${esc(e.message)}。页面数据可能已过期。</div>`;
+    return;
+  }
+  try {
+    if (s.now_iso) clockOffset = new Date(s.now_iso).getTime() - Date.now();
+    state = s;
+    $("ver").textContent = `· 版本 ${s.health?.version || "?"} · 进程 ${s.health?.pid || "?"}`;
+    renderAll(); soundCheck(s); refreshArrivalSettings();
+    if (state.driver_scoring_enabled && ui.main === "scores") loadDrivers();
+  } catch (e) {   // a display problem, not a connection problem: say what broke
+    console.error(e);
+    $("banners").insertAdjacentHTML("afterbegin", `<div class="banner bad">⚠ 页面显示出错：${esc(e.message)}（数据已读取，请截图发给技术支持）</div>`);
   }
 }
 setInterval(() => {  // smooth countdowns from backend deadlines; display only, never triggers notifications

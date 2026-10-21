@@ -356,7 +356,12 @@ def main(argv=None):
         if config.WEB_HOST not in ("127.0.0.1", "localhost") and not config.ADMIN_TOKEN:
             print("WARNING: dashboard is reachable from the network but BWI_ADMIN_TOKEN is not set; "
                   "anyone on the network can start or end the shift.", file=sys.stderr, flush=True)
-        serve(config.DB_PATH)
+        try:
+            serve(config.DB_PATH)
+        except OSError as e:  # another copy already serves (and polls): never run two monitors side by side
+            print(f"Port {config.WEB_PORT} is already in use ({e}); another BWI monitor is running. This copy stops "
+                  f"so TMS is not polled and Feishu not sent twice.", file=sys.stderr, flush=True)
+            return 3
         print(f"Dashboard: http://{config.WEB_HOST}:{config.WEB_PORT}", flush=True)
     try:
         monitor.run_forever()

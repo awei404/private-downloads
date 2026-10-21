@@ -59,6 +59,17 @@ try {
   if ($proc.HasExited) { Get-Content $out, $err | Write-Host; throw 'Monitor stopped' }
   if (Select-String -Path $err -Pattern 'Traceback' -Quiet) { Get-Content $err | Write-Host; throw 'Python error while running' }
   Write-Host "PASS: installed monitor runs on Windows (dashboard, state, token check HTTP $code)."
+  # a second copy on the same port must refuse to start (no two pollers / Feishu senders, no random answers)
+  $pid1 = (Invoke-RestMethod 'http://127.0.0.1:8766/healthz' -TimeoutSec 30).pid
+  $dup = Start-Process -FilePath $py -ArgumentList '-u', '-m', 'bwi_monitor.windows_service' -WorkingDirectory $root `
+    -RedirectStandardOutput "$root\dup-out.log" -RedirectStandardError "$root\dup-err.log" -PassThru -WindowStyle Hidden
+  if (-not $dup.WaitForExit(60000)) { Stop-Process -Id $dup.Id -Force; throw 'Second copy kept running on the same port' }
+  if ($dup.ExitCode -ne 3) { Get-Content "$root\dup-err.log" | Write-Host; throw "Second copy exit code $($dup.ExitCode), expected 3" }
+  foreach ($i in 1..10) {
+    $pidNow = (Invoke-RestMethod 'http://127.0.0.1:8766/healthz' -TimeoutSec 30).pid
+    if ($pidNow -ne $pid1) { throw "Requests answered by another process ($pidNow, expected $pid1)" }
+  }
+  Write-Host "PASS: a second copy refuses the port; every request answered by process $pid1."
 } finally {
   if (-not $proc.HasExited) { Stop-Process -Id $proc.Id -Force }
 }
