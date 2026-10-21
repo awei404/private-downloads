@@ -1184,6 +1184,28 @@ class TokenUpdate(unittest.TestCase):
         self.assertEqual(tms.normalize_token("Authorization: Bearer abc"), "Bearer abc")
 
 
+class UnloadedBeforeMonitoring(unittest.TestCase):
+    """2026-10-21: a fresh install first sees trucks already unloaded. TMS's unload-complete time before the
+    deadline makes them on time; otherwise they stay not judged ("监控开始前已卸·未判定时效")."""
+
+    def test_tms_complete_time_settles_trucks_unloaded_before_monitoring(self):
+        now = et("2026-10-11 18:00:00")
+        seen = obs(first_poll="17:00", start_seen="17:00", done_seen="17:00")
+        base = unload_seg(_obs=seen)
+        f = stage(base, now, "UNLOAD")
+        self.assertEqual(f.stage, "SKIP")                                   # no TMS completion time: not judged
+        deadline = f.deadline.astimezone(EASTERN)
+        early = dict(base, unloadCompleteTimeStrFormat=f"{deadline - timedelta(minutes=10):%Y-%m-%d %H:%M:%S} (Eastern Time)")
+        late = dict(base, unloadCompleteTimeStrFormat=f"{deadline + timedelta(minutes=10):%Y-%m-%d %H:%M:%S} (Eastern Time)")
+        self.assertEqual(stage(early, now, "UNLOAD").stage, "OK")
+        self.assertEqual(stage(late, now, "UNLOAD").stage, "SKIP")          # after the deadline: still unknown
+        row = web.unloading_row(base, stage(base, now, "UNLOAD"), now)
+        self.assertEqual(row["status"], "监控开始前已卸·未判定时效")
+        store, n = Store(":memory:"), FakeNotifier()
+        Engine(store, n).run(now, [early, dict(late, id=3)])
+        self.assertEqual([x for x in n.sent if x[1].startswith("UNLOAD")], [])  # no unloading notice for old trucks
+
+
 class DashboardHost(unittest.TestCase):
     def test_other_computers_may_use_this_computers_name(self):
         """2026-10-21: http://<computer name>:8766 from another warehouse PC must load data; random names must not."""

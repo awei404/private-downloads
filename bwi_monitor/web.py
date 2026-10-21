@@ -248,7 +248,7 @@ def departure_board(store, segs, now, muted_ids=None):
 UNLOAD_STATUS = {  # stage -> (key, 中文) for the unloading board; display only, no rule changes
     "WAITING": ("open", "待卸车"), "WARN": ("warn", "即将超时"), "OVERDUE": ("overdue", "已超时（TMS记录）"),
     "OK": ("done", "已完成"), "LATE": ("late", "超时完成（TMS记录）"), "UNCERTAIN": ("uncertain", "时间不确定"),
-    "PENDING": ("pending", "等待开门"), "SKIP": ("unknown", "无法判定"),
+    "PENDING": ("pending", "等待开门"), "SKIP": ("unknown", "监控开始前已卸·未判定时效"),
 }
 
 

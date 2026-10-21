@@ -307,6 +307,16 @@ def _judge(alert_type, step, seg, deadline, now, action, evidence):
                        f"Overdue based on TMS records: still incomplete at {fmt_et(last_not)}, deadline "
                        f"{fmt_et(deadline)}; first observed complete {fmt_et(seen)}", "", evidence)
     if last_not is None and (first_poll is None or seen <= first_poll):
+        # 2026-10-21: unloaded before the monitor ever saw the truck (e.g. a fresh install). TMS's own unload-complete
+        # time settles it when it is before the deadline (the first scan was even earlier); otherwise not judged.
+        try:
+            complete = seg_time(seg, "unloadCompleteTimeStrFormat") if seg.get("unloadCompleteTimeStrFormat") else None
+        except BadTime:
+            complete = None
+        if complete is not None and complete <= deadline:
+            return Finding(alert_type, OK, deadline, 0, f"{what} already shown when the monitor first saw this task; "
+                           f"TMS unload complete {fmt_et(complete)} is before the deadline: on time based on TMS records",
+                           "", dict(evidence, tmsUnloadComplete=fmt_et(complete)))
         return Finding(alert_type, SKIP, deadline, reason=f"{what} already shown when the monitor first saw this "
                        "task; no timing evidence, not judged", evidence=evidence)
     since = fmt_et(last_not) if last_not else "an unknown time (earlier counts missing)"
