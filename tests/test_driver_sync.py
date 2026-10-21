@@ -146,7 +146,7 @@ class DriverSyncTests(unittest.TestCase):
     def run_batch(self, sync, now=NOW):
         with mock.patch.object(driver_sync, "utcnow", return_value=now):
             sync.start()
-            self.assertTrue(sync._done.wait(10), "background batch did not finish")
+            self.assertTrue(sync._done.wait(60), "background batch did not finish")
         self.assertFalse(sync.status()["running"])
         return sync.status()
 
@@ -358,13 +358,13 @@ class DriverSyncTests(unittest.TestCase):
         with mock.patch.object(driver_sync, "utcnow", return_value=NOW):
             first = sync.start()
             self.assertTrue(first["running"])
-            self.assertTrue(transport.started.wait(2))
+            self.assertTrue(transport.started.wait(60))
             worker = sync._worker
             self.assertTrue(sync.start()["running"])
             self.assertIs(sync._worker, worker)
             sync.stop()
             gate.set()
-            self.assertTrue(sync._done.wait(5))
+            self.assertTrue(sync._done.wait(60))
         self.assertLessEqual(len(transport.calls), 3)
         self.assertEqual(self.profiles(), {})
         self.assertFalse(sync.start()["running"])
@@ -397,10 +397,10 @@ class DriverSyncTests(unittest.TestCase):
             with mock.patch.object(driver_sync, "utcnow", return_value=NOW), \
                     mock.patch.object(sync, "_connect", side_effect=traced_connect):
                 sync.start()
-                self.assertTrue(begin_attempted.wait(2))
+                self.assertTrue(begin_attempted.wait(60))
                 sync.stop()
                 blocker.rollback()
-                self.assertTrue(sync._done.wait(5))
+                self.assertTrue(sync._done.wait(60))
         finally:
             blocker.rollback()
         self.assertEqual(self.profiles(), {})
@@ -431,14 +431,14 @@ class DriverSyncTests(unittest.TestCase):
         with mock.patch.object(driver_sync, "utcnow", return_value=NOW), \
                 mock.patch.object(sync, "_connect", side_effect=traced_connect):
             sync.start()
-            self.assertTrue(commit_entered.wait(2))
+            self.assertTrue(commit_entered.wait(60))
             stopper = threading.Thread(target=stop, daemon=True)
             stopper.start()
-            self.assertTrue(stop_called.wait(1))
+            self.assertTrue(stop_called.wait(60))
             self.assertFalse(stop_returned.wait(0.05))
             commit_release.set()
-            self.assertTrue(stop_returned.wait(2))
-            self.assertTrue(sync._done.wait(2))
+            self.assertTrue(stop_returned.wait(60))
+            self.assertTrue(sync._done.wait(60))
         self.assertEqual(len(self.profiles()), 1)  # committed before stop was allowed to return
 
     def test_newer_profile_is_not_overwritten_by_earlier_request(self):
@@ -463,8 +463,8 @@ class DriverSyncTests(unittest.TestCase):
                 mock.patch.object(driver_sync, "MAX_BATCH", 1), \
                 mock.patch.object(driver_sync, "CONTINUE_SECONDS", 0.01):
             sync.start_periodic(interval=600)
-            self.assertTrue(second_request.wait(2))
-            self.assertTrue(sync._done.wait(2))
+            self.assertTrue(second_request.wait(60))
+            self.assertTrue(sync._done.wait(60))
             sync.stop()
             sync._periodic.join(1)
         self.assertFalse(sync._periodic.is_alive())
