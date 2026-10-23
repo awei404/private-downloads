@@ -118,15 +118,23 @@ class Monitor:
         keep_awake()
         next_poll = 0.0
         while True:
-            # Wall clock, not monotonic: on macOS the monotonic clock stops while the computer sleeps, so after a wake
-            # the next poll would wait out the rest of the interval (2026-10-17: 25 min with stale data).
-            if time.time() >= next_poll or self.store.get_meta("poll_now"):  # poll_now: new token saved
-                self.store.set_meta("poll_now", "")
-                self.poll()
-                next_poll = time.time() + config.POLL_SECONDS
-            now = utcnow()
-            self.check_staleness(now)
-            self.engine.run(now)
+            # 2026-10-23: one failed cycle (e.g. "database is locked" while the driver sync wrote) stopped the whole
+            # monitor for hours. A failure is logged and the next cycle tries again; the monitor never exits on it.
+            try:
+                # Wall clock, not monotonic: on macOS the monotonic clock stops while the computer sleeps, so after a
+                # wake the next poll would wait out the rest of the interval (2026-10-17: 25 min with stale data).
+                if time.time() >= next_poll or self.store.get_meta("poll_now"):  # poll_now: new token saved
+                    next_poll = time.time() + config.POLL_SECONDS
+                    self.store.set_meta("poll_now", "")
+                    self.poll()
+                now = utcnow()
+                self.check_staleness(now)
+                self.engine.run(now)
+            except Exception:
+                import traceback
+                print(f"[{utcnow().astimezone(EASTERN):%H:%M}] cycle failed, retrying next cycle:", file=sys.stderr, flush=True)
+                traceback.print_exc()
+                next_poll = min(next_poll, time.time() + 60)  # a failed poll is retried within a minute
             time.sleep(config.TICK_SECONDS)
 
 

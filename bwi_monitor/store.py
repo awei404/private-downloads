@@ -75,7 +75,8 @@ def from_iso(s):
 
 class Store:
     def __init__(self, path):
-        self.db = sqlite3.connect(path, check_same_thread=False, isolation_level=None)
+        # timeout: wait up to 30 s for another writer (the driver sync shares the file) instead of failing after 5 s
+        self.db = sqlite3.connect(path, check_same_thread=False, isolation_level=None, timeout=30)
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.executescript(SCHEMA)

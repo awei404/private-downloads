@@ -180,7 +180,7 @@ class DriverSync:
 
     def _connect(self):
         # mode=rw deliberately refuses to create a database at a mistaken path.
-        db = sqlite3.connect(self.db_path.as_uri() + "?mode=rw", uri=True, timeout=5)
+        db = sqlite3.connect(self.db_path.as_uri() + "?mode=rw", uri=True, timeout=30)
         db.row_factory = sqlite3.Row
         return db
 

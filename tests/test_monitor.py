@@ -1223,3 +1223,25 @@ class DashboardHost(unittest.TestCase):
         self.assertFalse(ok("attacker.example.com:8766"))
         with mock.patch.object(config, "ALLOWED_HOSTS", {"bwi-dashboard"}):
             self.assertTrue(ok("bwi-dashboard:8766"))
+
+
+class MonitorKeepsRunning(unittest.TestCase):
+    def test_a_failed_cycle_does_not_stop_the_monitor(self):
+        """2026-10-23: "database is locked" during a poll stopped the Mac monitor for hours; now it retries."""
+        import sqlite3
+        from bwi_monitor.__main__ import Monitor
+        m = Monitor(Store(":memory:"))
+        polls = mock.Mock(side_effect=[sqlite3.OperationalError("database is locked"), True])
+        sleeps = []
+
+        def fake_sleep(seconds):
+            sleeps.append(seconds)
+            if len(sleeps) >= 2:
+                raise KeyboardInterrupt
+        with mock.patch.object(m, "poll", polls), mock.patch.object(m, "check_staleness"), \
+                mock.patch.object(m.engine, "run"), mock.patch("bwi_monitor.__main__.keep_awake"), \
+                mock.patch("bwi_monitor.__main__.time.sleep", fake_sleep), \
+                mock.patch("bwi_monitor.__main__.time.time", side_effect=[0, 0, 1000, 1000, 2000, 2000, 3000]):
+            with self.assertRaises(KeyboardInterrupt):
+                m.run_forever()
+        self.assertEqual(polls.call_count, 2)        # the failed poll was retried on the next cycle
